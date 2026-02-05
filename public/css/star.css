@@ -1,0 +1,11 @@
+.starrr {
+  display: inline-block; }
+
+    i {
+      color: #ccc;
+      text-decoration: none; 
+    }
+
+      .star-checked{
+        color: gold;
+    }

@@ -1,0 +1,468 @@
+
+:root {
+      --background_color_body: #303030;
+      --text_color_body: #000000;
+      --text_color_body_sites: #ffffff;
+      --background_nav_color: #353A40;
+      --content-color: #F5F5F5;
+      --right-form-color: #000000;
+      
+}
+
+[data-theme="dark"] {
+    --background_color_body: #000000;
+    --text_color_body: #ffffff;
+    --text_color_body_sites: #000000;
+    --background_nav_color: #353A40;
+    --content-color: #202020;
+    --right-form-color: #FFFFFF;
+      
+}
+
+
+.video-responsive 
+{ 
+    width:100%;
+}
+
+.wrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.wrapper:after {
+  content: '';
+  display: block;
+  padding-top: 100%;
+}
+
+.wrapper img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.body{
+  margin-bottom: 100px;
+  background-color: var(--background_color_body);
+  color: var(--text_color_body);
+}
+
+.site-name{
+  padding-right: 10px;
+  color: white;
+}
+
+
+.navbar {
+  
+  background-color: var(--background_nav_color);
+  font-family: Arial;
+  min-height: 76px !important;
+  max-height: 76px !important;
+  
+  
+}
+
+/* Links inside the navbar */
+.navbar a {
+  float: left;
+  font-size: 16px;
+  color: white;
+  text-align: center;
+  padding: 30px 16px;
+  text-decoration: none;
+  
+  
+}
+
+/* Add a red background color to navbar links on hover */
+.navbar a:hover, .dropdown:hover .dropbtn {
+  background-color: red;
+  outline:none
+        
+}
+
+/* login menu */
+.dropdown-login-menu{
+  background: #333;
+  float: left;
+  font-size: 10px !important;
+  padding: 0px 0px !important;
+  line-height: 0px !important;
+  
+}
+
+/* filtr menu */
+.dropdown-filtr-menu{
+  color: white;
+  background: #333;
+ 
+  
+}
+
+/* login menu */
+#drop_down_id{
+  padding: 20px !important;
+}
+
+
+/* Extra search div */
+.search{
+  margin-bottom: 10px;
+} 
+
+.search a {
+  color: white;
+  text-decoration: none;
+}
+
+.search a:hover {
+  color: blue;
+  
+}
+/* END */
+
+
+.content{
+  min-height: 600px;
+  padding-top: 20px;
+  background-color: var(--content-color);
+}
+
+.modtext{
+  background-color: var(--content-color);
+  color: var(--bg-text);
+}
+
+.text_video{
+  color: var(--text_color_body);
+}
+
+.text_sites{
+  color: black !important;
+}
+
+
+/* Pagination */
+.page{
+    min-height: 50px;
+    margin-bottom: 10px;
+    text-align: center;
+    padding-top: 20px;
+    padding-bottom: 10px;
+}
+
+/* END */
+
+
+
+/*wraper text */
+.col-sm-12 {
+-moz-hyphens:auto;
+-ms-hyphens:auto;
+-webkit-hyphens:auto;
+hyphens:auto;
+word-wrap:break-word;
+}
+
+
+/* right site by form  */
+
+.form-right{
+  min-height: 20px;
+  text-align: center;
+  color: var(--right-form-color);
+}
+
+/* FILMS SETINGS  */
+video {
+  /* override other styles to make responsive */
+  width: 100%    !important;
+  height: 30vh;
+  object-fit: cover;
+}
+
+/* TAGS, STARS, STUDIOS, AJAX CONTROLLER How many films have this name */
+.film_number{
+  position: absolute;
+  bottom: 3%;
+  right: 0%;
+  margin-bottom: 15px;
+  padding: 5px 10px;
+  font-size: .75em;
+  background: rgba(0,0,0,.8);
+  color: white;
+
+}
+
+.film_number_star{
+  position: absolute;
+  bottom: 3%;
+  margin-bottom: 15px;
+  padding: 5px 10px;
+  font-size: .75em;
+  background: rgba(0,0,0,.8);
+  color: white;
+
+}
+
+
+.film_duration{
+  position: absolute;
+  bottom: 36%;
+  right: 0%;
+  margin-bottom: 15px;
+  padding: 5px 10px;
+  font-size: .75em;
+  background: rgba(0,0,0,.8);
+  color: white;
+
+}
+
+.film_rating{
+  position: absolute;
+  bottom: 36%;
+  min-width: 5%;
+  margin-bottom: 15px;
+  padding: 5px 10px;
+  font-size: .75em;
+  background: rgba(0,0,0,.8);
+  color: white;
+
+}
+
+/* END */
+
+/* TAGS, STARS, STUDIOS SYSTEM */
+
+.tags, .starr, .studios{
+  list-style: none;
+  display: inline-block;
+  text-align: center;
+  background-color: #343434;
+  margin-right: 7px;
+  margin-top: 5px;
+  line-height: 30px;
+  padding: 7px;
+  border-radius: 3px;
+  color: white;
+  text-decoration: none !important;
+}
+
+.deleteTag, .deleteTagExsit{
+    border-radius: 3px;
+}
+
+
+a.tag {
+  color: #fff !important;
+  text-decoration: none;
+  background-color: transparent;
+
+}
+
+table.table tr:hover td {
+background-color: red !important;
+color: white !important;
+}
+
+
+/* TAGS  */
+.tag-bg:hover {
+  background-color: #484848 !important;
+}
+
+.btn-delete:hover {
+  color: #fff;
+  background-color: #ff0000;
+  border-color: #ff0000;
+}
+
+.btn-success{
+  background-color: #11bf11 !important;
+}
+  
+
+
+.card-hover a{
+  text-decoration: none;
+  color: black !important;
+}
+
+.card-hover :hover{
+  background-color: red;
+  color: white;
+  text-decoration: none;
+
+}
+
+
+/* ADD Dot for to long text in video */
+.text_video_name {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+
+
+  @supports (-webkit-line-clamp: 2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: initial;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+
+/* center element in div */
+.vertical-center {
+  min-height: 75%;  /* Fallback for browsers do NOT support vh unit */
+  min-height: 75vh; /* These two lines are counted as one :-)       */
+
+
+  display: flex;
+  align-items: center;
+}
+
+
+/* Style autocomplete serach in add films */
+.ui-autocomplete {
+  max-height: 400px;
+  overflow-y: auto;
+  /* prevent horizontal scrollbar */
+  overflow-x: hidden;
+  /* add padding to account for vertical scrollbar */
+
+  white-space: normal !important;
+}
+
+.ui-menu .ui-menu-item a {
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+
+.ui-autocomplete.ui-menu{
+ 
+  white-space: normal !important;
+}
+ 
+.ui-menu-item{
+  white-space:wrap!important;
+  overflow-wrap: break-word;
+  word-break: break-all;
+  white-space: normal !important;
+}
+
+.ui-menu img{
+  width:190px;
+  height:192px;
+}
+
+.ui-menu li span{
+  padding:0 0 10px 10px;
+  margin:0 0 10px 0 !important;
+ 
+  
+}
+
+.ui-menu-item.ui-state-disabled {
+  background-color: rgb(197, 7, 7) !important;
+  color:black;
+  opacity:1 !important; 
+}
+
+#myBtn:hover {
+  background-color: #555; 
+}
+
+#center_filtr_films {
+  margin: auto;
+  width: 50%;
+  padding: 10px;
+  margin-bottom: 10px;
+  
+}
+
+a.filtr_films {
+  text-decoration: none;
+  background-color: transparent;
+  margin-right: 1%;
+  margin-left: 1%;
+}
+
+#center_filtr_films_text {
+  margin: auto;
+  width: 10%;
+
+}
+
+
+/* BUTTON UP */
+
+#myBtn {
+  display: none; 
+  position: fixed; 
+  bottom: 20px; 
+  right: 5px; 
+  z-index: 99; 
+  border: none; 
+  outline: none; 
+  background-color: red; 
+  color: white; 
+  cursor: pointer; 
+  padding: 8px; 
+  border-radius: 10px; 
+  font-size: 18px; 
+}
+
+/* END */
+
+
+
+/* fix height in mobile  */
+.navbar-collapse.collapse.show {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+
+.sticky_video_edit {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 80px;  
+  padding: 0px;
+  z-index: 100;
+}
+
+/* Watch video - style tags systems */
+a.badge:hover{
+  color: black;
+  background-color: yellow !important;
+
+}
+/* END */
+
+
+
+/* PLAYER VIDEO.JS */
+
+.vjs-big-play-button
+{
+display: none !important;
+}
+
+video[poster]{
+    object-fit: cover;
+}
+.vjs-poster {
+  background-size: cover !important;
+  background-position: inherit;
+}
+
+/* END */

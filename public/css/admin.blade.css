@@ -1,0 +1,564 @@
+/* DARK MODE! */
+:root {
+    --bg-color: #303030;
+    --bg-text: #000000;
+    --nav-color: #353A40;
+    --toggle-color: #353A40;
+    --content-color: #F5F5F5;
+    --alert-success-color: #88ff00;
+    --alert-errors-color: #ff0000;
+    --bg-modal-color: #d60f0f;
+    --bg-modal-text-color: #ffffff;
+    --right-form-color: #000000;
+    --bg-table: #000000;
+    --bg-table_a:#ff0000;
+}
+
+[data-theme="dark"] {
+  --bg-color: #000000;
+  --bg-text: #ffffff;
+  --nav-color: #353A40;
+  --toggle-color: #353A40;
+  --content-color: #202020;
+  --alert-success-color: #aecc26ba;
+  --alert-errors-color: #b33838;
+  --bg-modal-color: #d33030;
+  --bg-modal-text-color: #ffffff;
+  --right-form-color: #FFFFFF;
+  --bg-table: #ffffff;
+  --bg-table_a: rgb(208, 255, 0);
+}
+
+.alert-success{
+  border: none !important;
+  color: var(--bg-text) !important;
+  background-color: var(--alert-success-color) !important;
+}
+
+.body{
+  margin-bottom: 100px;
+  background-color: var(--bg-color);
+  color: var(--bg-text);
+}
+
+.colapse_name_text{
+  color: var(--bg-text);
+  
+}
+
+.modtext{
+  background-color: var(--bg-modal-color);
+  color: var(--bg-modal-text-color);
+}
+
+.modal-header .close {
+  color: white;
+}
+
+/* Navbar container */
+.navbar {
+
+background-color: var(--nav-color);
+  font-family: Arial;
+  min-height: 76px !important;
+  max-height: 76px !important;
+
+
+}
+
+/* toggler menu down */
+#navbarSupportedContent{
+  background-color: var(--toggle-color);
+
+}
+
+
+.site-name{
+  padding-right: 10px;
+  color: white;
+}
+
+/* Links inside the navbar */
+.navbar a {
+  float: left;
+  font-size: 16px;
+  color: white;
+  text-align: center;
+  padding: 30px 16px;
+  text-decoration: none;
+}
+
+
+
+/* Add a red background color to navbar links on hover */
+.navbar a:hover, .dropdown:hover .dropbtn {
+  background-color: red;
+  outline:none
+      
+}       
+
+/*right section navbar*/
+#nav_two{
+  float: right;  
+  color: white;
+  text-align: justify;
+
+}
+
+/*button black color layout*/
+
+
+/* use this class in navbar ! */
+.login-menu-dropdown{
+  background: #333;
+  float: left;
+  font-size: 10px !important;
+  padding: 0px 0px !important;
+  line-height: 0px !important;
+
+}
+
+/* USE THIS TO TABLE IN ADMIN FILMS, TAGAS, STARS, STUDIOS */
+.table_dropdown-menu {
+  padding-top: 0;
+  padding-bottom: 0;
+  border-radius: 6px;
+  color: #000000;
+}
+
+.table_dropdown-menu :hover{
+
+  border-radius: 5px;
+  color: white;
+  background-color: red;
+}
+
+/* END */
+
+
+
+#drop_down_id{
+  padding: 20px !important;
+  width: 100%;
+}
+
+.breadcrumb >.active {
+  color: black;
+}
+
+.breadcrumb a {
+  color: black;
+}
+
+
+/* search div */
+.search{
+  padding-top: 10px;
+  background-color: #333;
+  padding-bottom: 15px
+}
+
+.search a {
+  color: white;
+  text-decoration: none;
+}
+
+.search a:hover {
+  color: blue;
+
+}
+
+/* top baner */
+.baner{
+  max-height: 260px;
+  margin-bottom: 20px;
+
+}
+
+.content{
+  min-height: 600px;
+  padding-top: 20px;
+  background-color: var(--content-color);
+}
+
+.content_colapse{
+  background-color: var(--content-color);
+}
+
+.jssearch{
+  padding-bottom: 10px;
+  background-color: var(--content-color);
+}
+
+.page{
+  min-height: 50px;
+  margin-bottom: 10px;
+  text-align: center;
+  padding-top: 20px;
+  padding-bottom: 10px;
+}
+
+.baner-down{
+  max-height: 260px;
+  margin-bottom: 20px;
+}
+
+
+.footer{
+  min-height: 500px;
+  background-color: #333;
+  padding-top: 30px;
+}
+
+.footer-heading {
+  margin-bottom: 10px;
+  min-height: 30px;
+  text-align: center;
+}
+
+.footer-column{
+  min-height: 250px;
+  margin-top: 20px;
+  margin-bottom: 30px;
+}
+
+.ads-footer{
+  max-width: 350;
+  max-width: 350;
+}
+
+.footer-under-column{
+  min-height: 80px;
+}
+
+.footer-under-logo{
+  min-height: 20px;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.footer-logo a {
+  margin-left: 5px;
+  margin-right: 5px;
+  text-decoration: none;
+}
+
+table, th, td{
+  color: var(--bg-table);
+}
+
+
+
+/*wraper text */
+.col-sm-12 {
+  -moz-hyphens:auto;
+  -ms-hyphens:auto;
+  -webkit-hyphens:auto;
+  hyphens:auto;
+  word-wrap:break-word;
+}
+
+
+/* right site by form  */
+
+.form-right{
+  min-height: 20px;
+  text-align: center;
+  color: var(--right-form-color);
+}
+
+/* progress bar in form  */
+#progress-bar {
+  background-color: #12CC1A;
+  height:20px;color: #FFFFFF;
+  width:0%;-webkit-transition: width .3s;
+  -moz-transition: width .3s;
+  transition: width .3s;
+}
+
+#progress-div {
+  border:#0FA015 1px solid;
+  margin:30px 0px;
+  text-align:center;
+}
+
+#targetLayer {
+  width:100%;
+  text-align:center
+;}
+
+/* end  */
+
+
+video {
+  /* override other styles to make responsive */
+  width: 100%    !important;
+  height: auto   !important;
+  object-fit: cover;
+}
+
+/* TAGS, STARS, STUDIOS, AJAX CONTROLLER How many films have this name */
+.film_number_search{
+  position: absolute;
+  bottom: 35%;
+  right: 0%;
+  margin-bottom: 15px;
+  padding: 5px 10px;
+  font-size: .75em;
+  background: rgba(0,0,0,.8);
+  color: white;
+
+}
+
+.tags, .star, .studios{
+  list-style: none;
+  display: inline-block;
+  text-align: center;
+  background-color: #343434;
+  margin-right: 7px;
+  margin-top: 5px;
+  line-height: 30px;
+  padding: 7px;
+  border-radius: 3px;
+  color: white;
+}
+
+.deleteTag, .deleteTagExsit{
+  border-radius: 3px;
+}
+
+
+
+a.tag {
+  color: #fff !important;
+  text-decoration: none;
+  background-color: transparent;
+
+}
+
+.tag-bg:hover {
+  background-color: #484848 !important;
+}
+
+.btn-delete:hover {
+  color: #fff;
+  background-color: #ff0000;
+  border-color: #ff0000;
+}
+
+/* change color button */
+.btn-success{
+  background-color: #11bf11 !important;
+}
+
+/* change color button */
+.btn-danger{
+  background-color: red;
+}
+
+
+/*                                                          TABLE!!!                                        */
+
+ 
+
+table {
+    table-layout: fixed;
+}
+
+table.table  td, th {
+  vertical-align: middle !important;
+}
+
+td {
+  white-space: normal !important; 
+  word-wrap: break-word;  
+}
+
+
+
+table.table tr:hover {
+  background-color: rgb(50, 128, 205) !important;
+  color: white !important;
+}
+
+.table_site a {
+   color: var(--bg-table_a);
+   text-decoration: none;
+}
+
+/* center element in div */
+.vertical-center {
+  min-height: 50%;  /* Fallback for browsers do NOT support vh unit */
+  min-height: 50vh; /* These two lines are counted as one :-)       */
+
+
+  display: flex;
+  align-items: center;
+}
+
+.site_info{
+  border-radius: 10px;
+}
+
+
+
+/* Style autocomplete serach in add films */
+.ui-autocomplete {
+  max-height: 400px;
+  overflow-y: auto;
+  /* prevent horizontal scrollbar */
+  overflow-x: hidden;
+  /* add padding to account for vertical scrollbar */ 
+  white-space: normal !important;
+}
+
+.ui-menu .ui-menu-item a {
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+
+.ui-autocomplete.ui-menu{
+ 
+  white-space: normal !important;
+}
+ 
+.ui-menu-item{
+  white-space:wrap!important;
+  overflow-wrap: break-word;
+  word-break: break-all;
+  white-space: normal !important;
+}
+
+.ui-menu img{
+  width:190px;
+  height:192px;
+}
+
+.ui-menu li span{
+  padding:0 0 10px 10px;
+  margin:0 0 10px 0 !important;
+}
+
+.ui-menu-item.ui-state-disabled {
+  background-color: rgb(197, 7, 7) !important;
+  color:black;
+  opacity:1 !important; 
+}
+
+
+/* BUTTON UP */
+
+#myBtn {
+  display: none; 
+  position: fixed; 
+  bottom: 20px; 
+  right: 5px; 
+  z-index: 99; 
+  border: none; 
+  outline: none; 
+  background-color: red; 
+  color: white; 
+  cursor: pointer; 
+  padding: 8px; 
+  border-radius: 10px; 
+  font-size: 18px; 
+}
+
+#myBtn:hover {
+  background-color: #555; 
+}
+
+/* border when input = null */
+.form-error {
+  border: 3px solid #ff1900;
+}
+
+/* valid info */
+.valid_msg{
+  margin-top: 5px;
+}
+
+div.sticky_video_edit {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 80px;  
+  padding: 0px;
+}
+
+
+a.table_link {
+  color: #fff !important;
+  text-decoration: none;
+  background-color: transparent;
+  margin-right: 5%;
+  margin-left: 5%;
+}
+
+
+.operation_link{
+  border: 1px solid #ccc;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+  margin-top: 20px;
+  
+  
+}
+
+.operation_text{
+  margin-top: 20px;
+ padding-bottom: 10px;
+  
+}
+
+/* Show image in add blade */
+.camera_icon {
+background-color:#d7d7d7;
+background-position: center center;
+height:100%;
+width:100%;
+}
+
+/* fix height in mobile  */
+.navbar-collapse.collapse.show {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+
+/* Edit video - style tags systems */
+a.tags_edit{
+  text-decoration: none;
+  color: white;
+}
+
+.tags:hover{
+  color: black !important;
+  background-color: rgb(167, 167, 32) !important;
+}
+
+a.studio_edit{
+  text-decoration: none;
+  color: white;
+}
+
+.studios:hover{
+  color: black !important;
+  background-color: rgb(167, 167, 32) !important;
+}
+
+a.star_edit{
+  text-decoration: none;
+  color: white;
+}
+
+.star:hover{
+  color: black !important;
+  background-color: rgb(167, 167, 32) !important;
+}
+
+
+
+
+
+/* END */

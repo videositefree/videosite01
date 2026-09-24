@@ -18,746 +18,126 @@ use App\studios;
 
 class Filtrscontroller extends Controller
 {
-    
+
+    // Wcześniej ta metoda budowała osobny, ręcznie skopiowany blok zapytania
+    // dla KAŻDEJ kombinacji sort/date/time (~50 prawie identycznych bloków).
+    // Efekt: część kombinacji (np. sort+time bez daty) w ogóle nie była
+    // obsłużona, a gdy formularz trafiał tu bez zaznaczonego żadnego radio
+    // buttona, zmienna $films nigdy nie była ustawiona i strona się wywalała.
+    // Teraz zapytanie budowane jest przyrostowo — każdy filtr dokłada własny
+    // warunek niezależnie od pozostałych, więc każda kombinacja (i brak
+    // kombinacji) działa tak samo poprawnie.
     public function relevance(Request $request)
     {
-    $tags = DB::table('tags') ->get();
-    $stars = DB::table('stars') ->get();
-    $studios = DB::table('studios') ->get();
+        $search = $request->input('search');
+        $sort   = $request->input('sort');
+        $date   = $request->input('date');
+        $time   = $request->input('time');
 
-    $search = $request -> input('search');
-    
-    $sort = $request -> input('sort');
-    $date = $request -> input('date');
-    $time = $request -> input('time');
+        // nowe filtry: zakres oceny + konkretne tagi/gwiazdy/wytwórnie
+        $ratingMin = $request->input('rating_min');
+        $ratingMax = $request->input('rating_max');
+        $tagIds    = array_filter((array) $request->input('tags', []));
+        $starIds   = array_filter((array) $request->input('stars', []));
+        $studioIds = array_filter((array) $request->input('studios', []));
 
-    if($date === 'today'){
-    $date_var = "NOW() - INTERVAL 3 DAY";
+        $dateIntervals = [
+            'today'  => '3 DAY',
+            'week'   => '7 DAY',
+            'month'  => '30 DAY',
+            '3month' => '3 MONTH',
+            '6month' => '6 MONTH',
+        ];
+
+        // [dolna_granica_wylaczna, gorna_granica_wlaczna] w sekundach
+        $durationRanges = [
+            '3-10min'    => [null, 600],
+            '10-20min'   => [600, 1200],
+            '20-40min'   => [1200, 2400],
+            '40min_more' => [2400, null],
+        ];
+
+        $usesTagJoin = ($sort === 'relevance');
+
+        $query = DB::table('films')->where('films.activ', '=', '1');
+
+        if ($usesTagJoin) {
+            $query->join('films_tags', 'films_tags.film_id', '=', 'films.id')
+                  ->join('tags', 'tags.id', '=', 'films_tags.tag_id')
+                  ->select('films.*')
+                  ->where(function ($q) use ($search) {
+                      $q->where('films.name', 'like', '%'.$search.'%')
+                        ->orWhere('tags.name', 'like', '%'.$search.'%');
+                  });
+        } else {
+            $query->where('films.name', 'like', '%'.$search.'%');
+        }
+
+        if (!empty($date) && $date !== 'all' && isset($dateIntervals[$date])) {
+            $query->where('films.created_at', '>', DB::raw('NOW() - INTERVAL '.$dateIntervals[$date]));
+        }
+
+        if (!empty($time) && isset($durationRanges[$time])) {
+            [$min, $max] = $durationRanges[$time];
+            if ($min !== null) {
+                $query->where('films.duration', '>', $min);
+            }
+            if ($max !== null) {
+                $query->where('films.duration', '<=', $max);
+            }
+        }
+
+        if ($ratingMin !== null && $ratingMin !== '') {
+            $query->where('films.rating', '>=', $ratingMin);
+        }
+        if ($ratingMax !== null && $ratingMax !== '') {
+            $query->where('films.rating', '<=', $ratingMax);
+        }
+
+        // film musi mieć PRZYNAJMNIEJ JEDEN z zaznaczonych tagów (i analogicznie
+        // dla gwiazd/wytwórni) — kategorie łączone są ze sobą przez AND, więc
+        // wybranie tagu X i gwiazdy Y zwróci filmy pasujące do obu naraz
+        if (!empty($tagIds)) {
+            $query->whereIn('films.id', function ($sub) use ($tagIds) {
+                $sub->select('film_id')->from('films_tags')->whereIn('tag_id', $tagIds);
+            });
+        }
+        if (!empty($starIds)) {
+            $query->whereIn('films.id', function ($sub) use ($starIds) {
+                $sub->select('film_id')->from('films_stars')->whereIn('stars_id', $starIds);
+            });
+        }
+        if (!empty($studioIds)) {
+            $query->whereIn('films.id', function ($sub) use ($studioIds) {
+                $sub->select('film_id')->from('films_studios')->whereIn('studios_id', $studioIds);
+            });
+        }
+
+        switch ($sort) {
+            case 'rating':
+                $query->orderBy('films.rating', 'desc');
+                break;
+            case 'length':
+                $query->orderBy('films.duration', 'desc');
+                break;
+            case 'uploaddate':
+            default:
+                $query->orderBy('films.created_at', 'desc');
+                break;
+        }
+
+        $films = $query->distinct()->paginate(27);
+
+        // wybrane tagi/gwiazdy/wytwórnie z nazwami — żeby formularz mógł
+        // pokazać je z powrotem jako "pigułki" po odświeżeniu strony
+        $selectedTags = !empty($tagIds) ? DB::table('tags')->whereIn('id', $tagIds)->get() : collect();
+        $selectedStars = !empty($starIds) ? DB::table('stars')->whereIn('id', $starIds)->get() : collect();
+        $selectedStudios = !empty($studioIds) ? DB::table('studios')->whereIn('id', $studioIds)->get() : collect();
+
+        return view('sites.search', compact(
+            'films', 'sort', 'date', 'time', 'search',
+            'ratingMin', 'ratingMax', 'selectedTags', 'selectedStars', 'selectedStudios'
+        ));
     }
-    
-    if($date === 'week'){
-        $date_var = "NOW() - INTERVAL 7 DAY";
-    }
-
-    if($date === 'month'){
-        $date_var = "NOW() - INTERVAL 30 DAY";
-    }
-
-    if($date === '3month'){
-        $date_var = "NOW() - INTERVAL 3 MONTH";
-    }
-
-    if($date === '6month'){
-        $date_var = "NOW() - INTERVAL 6 MONTH";
-    }
-
-    if($time === '3-10min'){
-    $operator = "<=";
-    $time_var = "600";
-    }
-
-    if($time === '10-20min'){
-
-    $operator = ">";
-    $time_var = "600";
-    $operator_two = "<=";
-    $time_var_two = "1200";
-    }
-
-    if($time === '20-40min'){
-
-    $operator = ">";
-    $time_var = "1200";
-    $operator_two = "<=";
-    $time_var_two = "2400";
-    }
-
-    if($time === '40min_more'){
-        $operator = ">";
-        $time_var = "2400";
-        $operator_two = "<=";
-        $time_var_two = "240000";
-    }
-
-
-    if($sort === 'relevance'){
-    $films = DB::table('films')
-    ->join('films_tags', 'films_tags.film_id', '=', 'films.id')
-    ->join('tags', 'films_tags.tag_id', '=', 'tags.id')
-    ->select('films.*')
-    ->where('tags.name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->distinct()
-    ->paginate(27);
-    }
-
-    if($sort === 'uploaddate'){
-
-    $films = DB::table('films')
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->orderBy('created_at', 'desc')
-    ->distinct()
-    ->paginate(27); 
-    }
-
-    if($sort === 'rating'){
-
-    $films = DB::table('films')
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->orderBy('rating', 'desc')
-    ->distinct()
-    ->paginate(27); 
-
-    }
-
-    if($sort === 'length'){
-
-    $films = DB::table('films')
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->orderBy('duration', 'desc')
-    ->distinct()
-    ->paginate(27); 
-
-    }
-
-    if($date === 'all'){
-
-    $films = DB::table('films')
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->orderBy('created_at', 'desc')
-    ->distinct()
-    ->paginate(27); 
-
-    }
-
-    if($date === 'today'){
-
-    $films = DB::table('films')
-    ->where('created_at', '>', DB::raw('NOW() - INTERVAL 3 DAY'))
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->orderBy('created_at', 'desc')
-    ->distinct()
-    ->paginate(27); 
-
-    }
-    
-    if($date === 'week'){
-
-    $films = DB::table('films')
-    ->where('created_at', '>', DB::raw('NOW() - INTERVAL 7 DAY'))
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->orderBy('created_at', 'desc')
-    ->distinct()
-    ->paginate(27); 
-
-    }
-
-    if($date === 'month'){
-
-    $films = DB::table('films')
-    ->where('created_at', '>', DB::raw('NOW() - INTERVAL 30 DAY'))
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->orderBy('created_at', 'desc')
-    ->distinct()
-    ->paginate(27); 
-
-    }
-
-    if($date === '3month'){
-
-    $films = DB::table('films')
-    ->where('created_at', '>', DB::raw('NOW() - INTERVAL 3 MONTH'))
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->orderBy('created_at', 'desc')
-    ->distinct()
-    ->paginate(27); 
-
-    }
-
-    if($date === '6month'){
-
-    $films = DB::table('films')
-    ->where('created_at', '>', DB::raw('NOW() - INTERVAL 6 MONTH'))
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->orderBy('created_at', 'desc')
-    ->distinct()
-    ->paginate(27); 
-
-    }
-
-    if($time === '3-10min'){
-
-    $films = DB::table('films')
-    ->where('duration', '<=', '600')
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->distinct()
-    ->paginate(27); 
-    }
-
-    if($time === '10-20min'){
-
-    $films = DB::table('films')
-    ->where('duration', '>', '600')
-    ->where('duration', '<=', '1200')
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->distinct()
-    ->paginate(27); 
-    }
-
-    if($time === '20-40min'){
-
-    $films = DB::table('films')
-    ->where('duration', '>', '1200')
-    ->where('duration', '<=', '2400')
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->distinct()
-    ->paginate(27); 
-    }
-
-    if($time === '40min_more'){
-
-    $films = DB::table('films')
-    ->where('duration', '>', '2400')
-    ->where('name', 'like', '%'.$search.'%')
-    ->where('activ', '=', '1')
-    ->distinct()
-    ->paginate(27); 
-    }
-
-
-
-
-
-        //------------------------------------------------------- ADVENCED METHOD! -----------------------------------------------------//
-
-
-
-
-
-    if(!empty($sort) && !empty($date))
-    {
-        // for all date
-        if($sort === 'relevance' && $date === 'all'){
-        $films = DB::table('films')
-        ->join('films_tags', 'films_tags.film_id', '=', 'films.id')
-        ->join('tags', 'films_tags.tag_id', '=', 'tags.id')
-        ->select('films.*')
-        ->where('tags.name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->distinct()
-        ->paginate(27);
-        }
-
-        elseif($sort === 'relevance'){
-        $films = DB::table('films')
-        ->join('films_tags', 'films_tags.film_id', '=', 'films.id')
-        ->join('tags', 'films_tags.tag_id', '=', 'tags.id')
-        ->select('films.*')
-        ->where('tags.name', 'like', '%'.$search.'%')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('activ', '=', '1')
-        ->distinct()
-        ->paginate(27);
-        }
-
-        // for all date
-        if($sort === 'uploaddate' && $date === 'all'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-        }
-
-        elseif($sort === 'uploaddate'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->where('created_at', '>', DB::raw(''.$date_var.''))
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-        }
-
-
-        // for all date
-        if($sort === 'rating' && $date === 'all'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('rating', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($sort === 'rating'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->where('created_at', '>', DB::raw(''.$date_var.''))
-        ->orderBy('rating', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-
-        // for all date
-        if($sort === 'length' && $date === 'all'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('duration', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($sort === 'length'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->where('created_at', '>', DB::raw(''.$date_var.''))
-        ->orderBy('duration', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-    
-
-            
-
-    }
-
-        
-    if(!empty($sort) && !empty($time))
-    {
-
-        // for all time
-        if($sort === 'relevance' && $time === '3-10min'){
-        $films = DB::table('films')
-        ->join('films_tags', 'films_tags.film_id', '=', 'films.id')
-        ->join('tags', 'films_tags.tag_id', '=', 'tags.id')
-        ->select('films.*')
-        ->where('tags.name', 'like', '%'.$search.'%')
-        ->where('films.duration', ''.$operator.'', ''.$time_var.'')
-        ->where('activ', '=', '1')
-        ->distinct()
-        ->paginate(27);
-        }
-
-        elseif($sort === 'relevance'){
-        $films = DB::table('films')
-        ->join('films_tags', 'films_tags.film_id', '=', 'films.id')
-        ->join('tags', 'films_tags.tag_id', '=', 'tags.id')
-        ->select('films.*')
-        ->where('tags.name', 'like', '%'.$search.'%')
-        ->where('films.duration', ''.$operator.'', ''.$time_var.'')
-        ->where('films.duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('activ', '=', '1')
-        ->distinct()
-        ->paginate(27);
-        }
-
-        // for all time
-        if($sort === 'uploaddate' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-        }
-
-        elseif($sort === 'uploaddate'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-        }
-
-
-        // for all time
-        if($sort === 'rating' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('activ', '=', '1')
-        ->orderBy('rating', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($sort === 'rating'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('activ', '=', '1')
-        ->orderBy('rating', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-
-        // for all time
-        if($sort === 'length' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('activ', '=', '1')
-        ->orderBy('duration', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($sort === 'length'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('activ', '=', '1')
-        ->orderBy('duration', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-            
-            
-    }
-
-    if(!empty($date) && !empty($time))
-    {
-
-        if($date === 'all' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($date === 'all'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        if($date === 'today' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($date === 'today'){
-
-        $films = DB::table('films')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-        
-        if($date === 'week' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($date === 'week'){
-
-        $films = DB::table('films')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        if($date === 'month' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($date === 'month'){
-
-        $films = DB::table('films')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        if($date === '3month' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($date === '3month'){
-
-        $films = DB::table('films')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        if($date === '6month' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($date === '6month'){
-
-        $films = DB::table('films')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-
-
-
-            
-    }
-        
-  
-
-    if(!empty($sort) && !empty($date) && !empty($time))
-    {
-
-
-        // for all time
-        if($sort === 'relevance' && $time === '3-10min' && $date === 'all'){
-        $films = DB::table('films')
-        ->join('films_tags', 'films_tags.film_id', '=', 'films.id')
-        ->join('tags', 'films_tags.tag_id', '=', 'tags.id')
-        ->select('films.*')
-        ->where('tags.name', 'like', '%'.$search.'%')
-        ->where('films.duration', ''.$operator.'', ''.$time_var.'')
-        ->where('activ', '=', '1')
-        ->distinct()
-        ->paginate(27);
-        }
-
-        elseif($sort === 'relevance'){
-        $films = DB::table('films')
-        ->join('films_tags', 'films_tags.film_id', '=', 'films.id')
-        ->join('tags', 'films_tags.tag_id', '=', 'tags.id')
-        ->select('films.*')
-        ->where('tags.name', 'like', '%'.$search.'%')
-        ->where('films.duration', ''.$operator.'', ''.$time_var.'')
-        ->where('films.duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('activ', '=', '1')
-        ->distinct()
-        ->paginate(27);
-        }
-
-        // for all time
-        if($sort === 'uploaddate' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-        }
-
-        elseif($sort === 'uploaddate'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('activ', '=', '1')
-        ->orderBy('created_at', 'desc')
-        ->distinct()
-        ->paginate(27); 
-        }
-
-
-        // for all time
-        if($sort === 'rating' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('activ', '=', '1')
-        ->orderBy('rating', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($sort === 'rating'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('activ', '=', '1')
-        ->orderBy('rating', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-
-        // for all time
-        if($sort === 'length' && $time === '3-10min'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('activ', '=', '1')
-        ->orderBy('duration', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        elseif($sort === 'length'){
-
-        $films = DB::table('films')
-        ->where('name', 'like', '%'.$search.'%')
-        ->where('duration', ''.$operator.'', ''.$time_var.'')
-        ->where('duration', ''.$operator_two.'', ''.$time_var_two.'')
-        ->where('films.created_at', '>', DB::raw(''.$date_var.''))
-        ->where('activ', '=', '1')
-        ->orderBy('duration', 'desc')
-        ->distinct()
-        ->paginate(27); 
-
-        }
-
-        
-    }
-
-    
-
-    
-
-    
-    return view('sites.search', compact('films', 'sort', 'date', 'time', 'search'));
-
-}
-
-
-
-
 
 }

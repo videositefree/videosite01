@@ -23,12 +23,124 @@ class AdminStarsController extends Controller
     {
         $this->middleware('auth'); 
     }
+
+    // =========================================================================================================
+    // POMOCNICZE METODY
+    // =========================================================================================================
+
+    private function starsSorted($orderColumn = 'id', $direction = 'DESC', $sex = null)
+    {
+        $query = DB::table('stars')->orderBy($orderColumn, $direction);
+        if ($sex !== null) {
+            $query->where('sex', '=', $sex);
+        }
+        return $query->paginate(27);
+    }
+
+    private function attachStarTag($starId, $tagId, $tagDb)
+    {
+        $exists = DB::table('stars_tags')
+            ->where('star_id', $starId)
+            ->where('tag_id', $tagId)
+            ->where('tag_db', $tagDb)
+            ->exists();
+
+        if (!$exists) {
+            $pivot = new stars_tags;
+            $pivot->star_id = $starId;
+            $pivot->tag_id = $tagId;
+            $pivot->tag_db = $tagDb;
+            $pivot->save();
+        }
+    }
+
+    // $tagDb=0 -> tabela tags_stars (własne tagi gwiazd), $tagDb=1 -> tabela tags (wspólna z filmami)
+    private function attachStarTagsByName($starId, $names, $tagDb)
+    {
+        if (empty($names)) {
+            return;
+        }
+        $table = $tagDb === 0 ? 'tags_stars' : 'tags';
+
+        foreach ($names as $name) {
+            $matches = DB::table($table)->where('name', '=', $name)->get();
+            foreach ($matches as $match) {
+                $this->attachStarTag($starId, $match->id, $tagDb);
+            }
+        }
+    }
+
+    private function openStaticFolder($path)
+    {
+        if (is_dir($path)) {
+            shell_exec('start '.$path.'');
+            return redirect()->back();
+        }
+        return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+    }
+
+    private function openStarFolder($id, $folderDepth, $fileDepth = null)
+    {
+        $star = stars::find($id);
+        $string = explode("/", $star->thumbnail);
+        $urlFolder = implode('\\', array_slice($string, 0, $folderDepth));
+
+        if (!is_dir($urlFolder)) {
+            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+        }
+
+        if ($fileDepth !== null) {
+            $urlFile = implode('\\', array_slice($string, 0, $fileDepth));
+            if (file_exists($urlFile)) {
+                shell_exec('explorer /select, '.$urlFile.'');
+            } else {
+                shell_exec('start '.$urlFolder.'');
+            }
+        } else {
+            shell_exec('start '.$urlFolder.'');
+        }
+
+        return redirect()->back();
+    }
+
+    private function renderFilmSearchCard($url, $urlEdit, $urlDelete, $thumbnail, $count, $name)
+    {
+        return '
+            <div class="entity-col">
+                <a href="'.$url.'" class="entity-card">
+                    <div class="entity-card__media">
+                        <img src="'.$thumbnail.'" alt="'.htmlspecialchars($name).'" loading="lazy">
+                        <div class="film_number_search"><i class="fas fa-video"></i>&nbsp;&nbsp;'.$count.'</div>
+                    </div>
+                    <div class="entity-card__body">'.htmlspecialchars($name).'</div>
+                </a>
+                <div class="jssearch" style="display:flex; gap:8px; margin-top:8px;">
+                    <a href="'.$urlEdit.'" class="btn btn-info">Edytuj</a>
+                    <a href="'.$urlDelete.'" class="btn btn-danger">Usuń</a>
+                </div>
+            </div>
+        ';
+    }
+
+    private function renderEmptySearchResult()
+    {
+        return '
+            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
+                <div class="alert alert-danger">
+                    <ul>
+                        Przepraszamy ale nie mamy tego czego szukasz :/
+                    </ul>
+                </div>
+            </div>
+        ';
+    }
+
    
     //============================================================== ADMIN TABLE STARS =========================================================== //
     public function stars(){
 
-        $stars = DB::table('stars')->orderBy('id', 'DESC')->paginate(27);
-        $all_stars = DB::table('stars')->orderBy('id', 'DESC')->paginate(27);
+        $stars = $this->starsSorted('id', 'DESC');
+        $all_stars = $stars;
         $count_stars = DB::table('stars')->count();
         return view('admin.admin_stars',compact('stars', 'count_stars', 'all_stars'));
     
@@ -40,8 +152,8 @@ class AdminStarsController extends Controller
 
     public function stars_id_asc(){
 
-        $stars = DB::table('stars')->orderBy('id', 'ASC')->paginate(27);
-        $all_stars = DB::table('stars')->orderBy('id', 'ASC')->paginate(27);
+        $stars = $this->starsSorted('id', 'ASC');
+        $all_stars = $stars;
         $count_stars = DB::table('stars')->count();
         return view('admin.admin_stars',compact('stars', 'count_stars', 'all_stars'));
     
@@ -49,8 +161,8 @@ class AdminStarsController extends Controller
 
     public function stars_name_asc(){
 
-        $stars = DB::table('stars')->orderBy('name', 'ASC')->paginate(27);
-        $all_stars = DB::table('stars')->orderBy('name', 'ASC')->paginate(27);
+        $stars = $this->starsSorted('name', 'ASC');
+        $all_stars = $stars;
         $count_stars = DB::table('stars')->count();
         return view('admin.admin_stars',compact('stars', 'count_stars', 'all_stars'));
     
@@ -58,8 +170,8 @@ class AdminStarsController extends Controller
 
     public function stars_gender_male(){
 
-        $stars = DB::table('stars')->orderBy('sex', 'ASC')->where('sex', '=', 'male')->paginate(27);
-        $all_stars = DB::table('stars')->orderBy('sex', 'ASC')->where('sex', '=', 'male')->paginate(27);
+        $stars = $this->starsSorted('sex', 'ASC', 'male');
+        $all_stars = $stars;
         $count_stars = DB::table('stars')->where('sex', '=', 'male')->count();
         return view('admin.admin_stars',compact('stars', 'count_stars', 'all_stars'));
     
@@ -67,8 +179,8 @@ class AdminStarsController extends Controller
 
     public function stars_gender_female(){
 
-        $stars = DB::table('stars')->orderBy('sex', 'ASC')->where('sex', '=', 'female')->paginate(27);
-        $all_stars = DB::table('stars')->orderBy('sex', 'ASC')->where('sex', '=', 'female')->paginate(27);
+        $stars = $this->starsSorted('sex', 'ASC', 'female');
+        $all_stars = $stars;
         $count_stars = DB::table('stars')->where('sex', '=', 'female')->count();
         return view('admin.admin_stars',compact('stars', 'count_stars', 'all_stars'));
     
@@ -76,8 +188,8 @@ class AdminStarsController extends Controller
 
     public function stars_name_desc(){
 
-        $stars = DB::table('stars')->orderBy('name', 'DESC')->paginate(27);
-        $all_stars = DB::table('stars')->orderBy('name', 'DESC')->paginate(27);
+        $stars = $this->starsSorted('name', 'DESC');
+        $all_stars = $stars;
         $count_stars = DB::table('stars')->count();
         return view('admin.admin_stars',compact('stars', 'count_stars', 'all_stars'));
     
@@ -85,8 +197,8 @@ class AdminStarsController extends Controller
 
     public function stars_rating_asc(){
 
-        $stars = DB::table('stars')->orderBy('rating', 'ASC')->paginate(27);
-        $all_stars = DB::table('stars')->orderBy('rating', 'ASC')->paginate(27);
+        $stars = $this->starsSorted('rating', 'ASC');
+        $all_stars = $stars;
         $count_stars = DB::table('stars')->count();
         return view('admin.admin_stars',compact('stars', 'count_stars', 'all_stars'));
     
@@ -94,8 +206,8 @@ class AdminStarsController extends Controller
 
     public function stars_rating_desc(){
 
-        $stars = DB::table('stars')->orderBy('rating', 'DESC')->paginate(27);
-        $all_stars = DB::table('stars')->orderBy('rating', 'DESC')->paginate(27);
+        $stars = $this->starsSorted('rating', 'DESC');
+        $all_stars = $stars;
         $count_stars = DB::table('stars')->count();
         return view('admin.admin_stars',compact('stars', 'count_stars', 'all_stars'));
     
@@ -228,93 +340,8 @@ class AdminStarsController extends Controller
         $stars->save();
         $last_id_db = $stars->id;
 
-        $multiTag = $request -> input('multiTag');
-        // add new tags for films 
-        if(!empty($multiTag))
-        {
-            foreach ($multiTag as $key=>$tag) 
-            {
-
-                $query = DB::table('tags_stars')
-                ->where('name', '=', $tag)
-                ->get();
-                
-                $tagscount = $query->count();
-
-                if($tagscount > 0) 
-                {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-
-                        $films_tags_db = DB::table('stars_tags')
-                        ->select('tag_id')
-                        ->where('star_id', $last_id)
-                        ->where('tag_id', $tag_id)
-                        ->where('tag_db', 0)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-
-                            $films_tags = new stars_tags;                            
-                            $films_tags->star_id = $last_id;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->tag_db = 0;
-                            $films_tags->save();
-
-                        }
-                        
-                        
-                    }
-
-                    
-                }
-            }
-        }
-
-
-
-        $multiTagFilms = $request -> input('multiTagFilms');
-        // add new tags for films 
-        if(!empty($multiTagFilms))
-        {
-            foreach ($multiTagFilms as $key=>$tag) 
-            {
-
-                $query = DB::table('tags')
-                ->where('name', '=', $tag)
-                ->get();
-                
-                $tagscount = $query->count();
-
-                if($tagscount > 0) 
-                {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-
-                        $films_tags_db = DB::table('stars_tags')
-                        ->select('tag_id')
-                        ->where('star_id', $last_id)
-                        ->where('tag_id', $tag_id)
-                        ->where('tag_db', 1)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-
-                            $films_tags = new stars_tags;                            
-                            $films_tags->star_id = $last_id;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->tag_db = 1;
-                            $films_tags->save();
-
-                        }
-                        
-                        
-                    }
-
-                    
-                }
-            }
-        }
+        $this->attachStarTagsByName($last_id, $request->input('multiTag'), 0);
+        $this->attachStarTagsByName($last_id, $request->input('multiTagFilms'), 1);
 
         
         if(isset($last_id_db)) {
@@ -369,69 +396,16 @@ class AdminStarsController extends Controller
 
 
     public function open_main_folder_stars() {
-
- 
-        $url_film = "..\\..\\filmy\\thumbnail\\stars\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openStaticFolder("..\\..\\filmy\\thumbnail\\stars\\");
     }
 
 
     public function open_folder_stars($id) {
-
-        $tags = stars::find($id);
-
-  
-        $url_thumbnail = $tags->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 4));
-
-
-        if (is_dir($url_film)){
-            shell_exec('start '.$url_film.'');
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openStarFolder($id, 4);
     }
 
     public function open_folder_stars_next($id) {
-
-        $tags = stars::find($id);
-
-  
-        $url_thumbnail = $tags->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 5));
-        $url_filmm = implode('\\', array_slice($string, 0, 6));
-
-
-        if (is_dir($url_film)){
-            if(file_exists($url_filmm)){
-            shell_exec('explorer /select, '.$url_filmm.'');
-            }
-            else
-            {
-            shell_exec('start'.$url_film.'');
-            }
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openStarFolder($id, 5, 6);
     }
 
     //==================================================================== END  =========================================================== //
@@ -461,7 +435,6 @@ class AdminStarsController extends Controller
         if($chose_sex == 2){
             $chose_sex = "female";
         }
-        echo $chose_sex;
         
         $thumbnail = $request -> input('thumbnail_stars');
         $name = $request -> input('stars_name');
@@ -694,47 +667,13 @@ class AdminStarsController extends Controller
             ->distinct()
             ->count();
 
-
-            echo '
-            <div class="col-sm-3 ">
-                <div class=" m-2 ">
-                    <div class="card video-wrapper" style="background-color: #F5F5F5;">
-
-                    <img src="'.$thumbnail.'" height="270" ></img>
-
-                    <a href="'.$url_films.'">
-                    <div class="film_number_search">
-                        <i class="fas fa-video">&nbsp;&nbsp;'.$count_films.'</i>
-                    </div>
-                    </a>
-                        
-                    <div class="card-body jssearch">
-                        <p class="card-text">'.$name.'</p>
-                    </div>
-
-                    <div class="jssearch">
-                    <a href="'.$url.'" class="btn btn-info">Edytuj</a>
-                    <a href="'.$url_delete.'" class="btn btn-danger">Usuń</a>
-                    </div>
-
-                    </div>
-                </div>
-            </div>
-            ';
+            echo $this->renderFilmSearchCard($url_films, $url, $url_delete, $thumbnail, $count_films, $name);
         }
 
         }
         else
         {
-            echo '
-            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
-                <div class="alert alert-danger">
-                    <ul>
-                        Przepraszamy ale nie mamy tego czego szukasz :/
-                    </ul>
-                </div>
-            </div>
-            '; 
+            echo $this->renderEmptySearchResult();
         }
         
     }

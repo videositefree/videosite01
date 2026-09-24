@@ -1,11 +1,16 @@
-.starrr {
-  display: inline-block; }
-
-    i {
-      color: #ccc;
-      text-decoration: none; 
-    }
-
-      .star-checked{
-        color: gold;
-    }
+/* Scoped down from a bare "i { color: #ccc }" which was overriding icon
+   colors site-wide (nav icons, duration/rating badges, action buttons).
+   The interactive star-rating widget (Starrr plugin) is mounted on
+   ".ratings" (see public/js/add_films.js: $(".ratings").starrr()) —
+   NOT ".starrr" — so both are covered here. */
+.ratings, .starrr {
+  display: inline-block;
+}
+.ratings i, .starrr i {
+  color: #4a4f58;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ratings .star-checked, .starrr .star-checked {
+  color: var(--gold, gold);
+}

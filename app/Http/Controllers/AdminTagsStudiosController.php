@@ -24,11 +24,143 @@ class AdminTagsStudiosController extends Controller
         $this->middleware('auth'); 
     }
 
+    // =========================================================================================================
+    // POMOCNICZE METODY
+    // =========================================================================================================
+
+    private function tagsStudiosSorted($orderColumn = 'id', $direction = 'DESC')
+    {
+        return DB::table('tags_studios')->orderBy($orderColumn, $direction)->paginate(27);
+    }
+
+    private function attachTagToStudio($studioId, $tagId, $tagDb)
+    {
+        $exists = DB::table('studios_tags')
+            ->where('studio_id', $studioId)
+            ->where('tag_id', $tagId)
+            ->where('tag_db', $tagDb)
+            ->exists();
+
+        if (!$exists) {
+            $pivot = new studios_tags;
+            $pivot->studio_id = $studioId;
+            $pivot->tag_id = $tagId;
+            $pivot->tag_db = $tagDb;
+            $pivot->save();
+            return $pivot->id;
+        }
+        return null;
+    }
+
+    // $tagDb=0 -> tabela tags_studios (własne tagi wytwórni), $tagDb=1 -> tabela tags (wspólna z filmami)
+    private function attachTagsToStudioByName($studioId, $names, $tagDb)
+    {
+        $lastId = null;
+        if (empty($names)) {
+            return $lastId;
+        }
+        $table = $tagDb === 0 ? 'tags_studios' : 'tags';
+
+        foreach ($names as $name) {
+            $matches = DB::table($table)->where('name', '=', $name)->get();
+            foreach ($matches as $match) {
+                $id = $this->attachTagToStudio($studioId, $match->id, $tagDb);
+                if ($id !== null) {
+                    $lastId = $id;
+                }
+            }
+        }
+        return $lastId;
+    }
+
+    private function openStaticFolder($path)
+    {
+        if (is_dir($path)) {
+            shell_exec('start '.$path.'');
+            return redirect()->back();
+        }
+        return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+    }
+
+    private function openTagsStudiosFolder($id, $folderDepth, $fileDepth = null)
+    {
+        $tags = tags_studios::find($id);
+        $string = explode("/", $tags->thumbnail);
+        $urlFolder = implode('\\', array_slice($string, 0, $folderDepth));
+
+        if (!is_dir($urlFolder)) {
+            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+        }
+
+        if ($fileDepth !== null) {
+            $urlFile = implode('\\', array_slice($string, 0, $fileDepth));
+            if (file_exists($urlFile)) {
+                shell_exec('explorer /select, '.$urlFile.'');
+            } else {
+                shell_exec('start '.$urlFolder.'');
+            }
+        } else {
+            shell_exec('start '.$urlFolder.'');
+        }
+
+        return redirect()->back();
+    }
+
+    // wspólne zapytanie dla całej rodziny select_categories_studios* — wytwórnie przypisane do tagu
+    private function studiosForTagQuery($tagTable, $id, $tagDb, $orderColumn, $direction)
+    {
+        return DB::table($tagTable)
+            ->join('studios_tags', 'studios_tags.tag_id', '=', $tagTable.'.id')
+            ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
+            ->orderBy($orderColumn, $direction)
+            ->select('studios.*')
+            ->where($tagTable.'.id', $id)
+            ->where('studios_tags.tag_db', $tagDb)
+            ->distinct();
+    }
+
+    private function countStudiosForTag($tagTable, $id, $tagDb)
+    {
+        return $this->studiosForTagQuery($tagTable, $id, $tagDb, 'name', 'ASC')->count();
+    }
+
+    private function renderEntityCard($url, $urlEdit, $urlDelete, $thumbnail, $count, $name)
+    {
+        return '
+            <div class="entity-col">
+                <a href="'.$url.'" class="entity-card">
+                    <div class="entity-card__media">
+                        <img src="'.$thumbnail.'" alt="'.htmlspecialchars($name).'" loading="lazy">
+                        <div class="film_number_search"><i class="fas fa-tag"></i>&nbsp;&nbsp;'.$count.'</div>
+                    </div>
+                    <div class="entity-card__body">'.htmlspecialchars($name).'</div>
+                </a>
+                <div class="jssearch" style="display:flex; gap:8px; margin-top:8px;">
+                    <a href="'.$urlEdit.'" class="btn btn-info">Edytuj</a>
+                    <a href="'.$urlDelete.'" class="btn btn-danger">Usuń</a>
+                </div>
+            </div>
+        ';
+    }
+
+    private function renderEmptySearchResult()
+    {
+        return '
+            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
+                <div class="alert alert-danger">
+                    <ul>
+                        Przepraszamy ale nie mamy tego czego szukasz :/
+                    </ul>
+                </div>
+            </div>
+        ';
+    }
+
 
     public function tags_studios(){
 
-        $tags = DB::table('tags_studios')->orderBy('id', 'DESC')->paginate(27);
-        $all_tags = DB::table('tags_studios')->orderBy('id', 'DESC')->paginate(27);
+        $tags = $this->tagsStudiosSorted('id', 'DESC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_studios')->count();
         return view('admin.tags_studios.admin_tags_studios',compact('tags', 'count_tags', 'all_tags'));
        
@@ -40,8 +172,8 @@ class AdminTagsStudiosController extends Controller
 
     public function tags_studios_id_asc(){
 
-        $tags = DB::table('tags_studios')->orderBy('id', 'ASC')->paginate(27);
-        $all_tags = DB::table('tags_studios')->orderBy('id', 'ASC')->paginate(27);
+        $tags = $this->tagsStudiosSorted('id', 'ASC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_studios')->count();
         return view('admin.tags_studios.admin_tags_studios',compact('tags', 'count_tags', 'all_tags'));
        
@@ -49,8 +181,8 @@ class AdminTagsStudiosController extends Controller
 
     public function tags_studios_name_asc(){
 
-        $tags = DB::table('tags_studios')->orderBy('name', 'ASC')->paginate(27);
-        $all_tags = DB::table('tags_studios')->orderBy('name', 'ASC')->paginate(27);
+        $tags = $this->tagsStudiosSorted('name', 'ASC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_studios')->count();
         return view('admin.tags_studios.admin_tags_studios',compact('tags', 'count_tags', 'all_tags'));
        
@@ -58,8 +190,8 @@ class AdminTagsStudiosController extends Controller
 
     public function tags_studios_name_desc(){
 
-        $tags = DB::table('tags_studios')->orderBy('name', 'DESC')->paginate(27);
-        $all_tags = DB::table('tags_studios')->orderBy('name', 'DESC')->paginate(27);
+        $tags = $this->tagsStudiosSorted('name', 'DESC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_studios')->count();
         return view('admin.tags_studios.admin_tags_studios',compact('tags', 'count_tags', 'all_tags'));
        
@@ -102,10 +234,6 @@ class AdminTagsStudiosController extends Controller
         $resize_img = $request -> input('resize_img');
         $height_img = $request -> input('height_img');
         $width_img = $request -> input('width_img');
-
-        if(!is_null($height_img) && !is_null($width_img)){
-            echo "podana wysokość to".$height_img;
-        }
 
 
 
@@ -213,19 +341,7 @@ class AdminTagsStudiosController extends Controller
 
     //================================================================== Open folders tags_studios ================================================== //
     public function open_main_folder_tags_studios() {
-
- 
-        $url_film = "..\\..\\filmy\\thumbnail\\tags_studios\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openStaticFolder("..\\..\\filmy\\thumbnail\\tags_studios\\");
     }
     //============================================================================ END ============================================================ //
 
@@ -233,24 +349,7 @@ class AdminTagsStudiosController extends Controller
 
     //=========================================================== Open folders thumbnail in edit_tags blade ======================================= //
     public function open_folder_tags_studios($id) {
-
-        $tags = tags_studios::find($id);
-
-  
-        $url_thumbnail = $tags->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 4));
-
-
-        if (is_dir($url_film)){
-            shell_exec('start '.$url_film.'');
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openTagsStudiosFolder($id, 4);
     }
     //============================================================================ END ============================================================ //
 
@@ -258,31 +357,7 @@ class AdminTagsStudiosController extends Controller
 
     //========================================================= Open folders tags_studios and select id =========================================== //
     public function open_folder_tags_next_studios($id) {
-
-        $tags = tags_studios::find($id);
-
-  
-        $url_thumbnail = $tags->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 5));
-        $url_filmm = implode('\\', array_slice($string, 0, 6));
-
-
-        if (is_dir($url_film)){
-            if(file_exists($url_filmm)){
-            shell_exec('explorer /select, '.$url_filmm.'');
-            }
-            else
-            {
-                shell_exec('start'.$url_film.'');
-            }
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openTagsStudiosFolder($id, 5, 6);
     }
     //============================================================================ END ============================================================ //
 
@@ -521,8 +596,6 @@ class AdminTagsStudiosController extends Controller
         ->where('name', 'like', '%'.$searchTerm.'%')
         ->Orwhere('id', 'like', '%'.$searchTerm.'%')
         ->count();
-        
-        
 
         if($count>0){
 
@@ -532,60 +605,19 @@ class AdminTagsStudiosController extends Controller
         $thumbnail = $tags->thumbnail;
         $url = url('/edit_tags_studios',$id);
         $url_delete = url('/delete_files_from_admin_search_tags_studios',$id);
+        
+        $count_films = $this->countStudiosForTag('tags_studios', $id, 0);
+
         $url_films = url('/select_categories_studios',$id);
 
-        $count_films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->count();
-
-
-        echo '
-        <div class="col-sm-3 ">
-                <div class=" m-2 ">
-                    <div class="card video-wrapper" style="background-color: #F5F5F5;">
-
-                    <img src="'.$thumbnail.'" height="270" ></img>
-
-                    <a href="'.$url_films.'">
-                        <div class="film_number_search">
-                            <i class="fas fa-tag">&nbsp;&nbsp;'.$count_films.'</i>
-                        </div>
-                    </a>
-                        
-                    <div class="card-body jssearch">
-                        <p class="card-text">'.$name.'</p>
-                    </div>
-
-                    <div class="jssearch">
-                    <a href="'.$url.'" class="btn btn-info">Edytuj</a>
-                    <a href="'.$url_delete.'" class="btn btn-danger">Usuń</a>
-                    </div>
-
-                    </div>
-                </div>
-            </div>
-        ';
+        echo $this->renderEntityCard($url_films, $url, $url_delete, $thumbnail, $count_films, $name);
         
         }
 
         }
         else
         {
-            echo '
-            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
-                <div class="alert alert-danger">
-                    <ul>
-                        Przepraszamy ale nie mamy tego czego szukasz :/
-                    </ul>
-                </div>
-            </div>
-            '; 
+            echo $this->renderEmptySearchResult();
         }
 
         
@@ -661,94 +693,10 @@ class AdminTagsStudiosController extends Controller
     public function studios_tag_add_edit_site(Request $request){
 
         $last_id = $request -> input('id');
-        $multiTag = $request -> input('multiTag');
-        // add new tags for films 
-        if(!empty($multiTag))
-        {
-            foreach ($multiTag as $key=>$tag) 
-            {
 
-                $query = DB::table('tags_studios')
-                ->where('name', '=', $tag)
-                ->get();
-                
-                $tagscount = $query->count();
-
-                if($tagscount > 0) 
-                {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-
-                        $films_tags_db = DB::table('studios_tags')
-                        ->select('tag_id')
-                        ->where('studio_id', $last_id)
-                        ->where('tag_id', $tag_id)
-                        ->where('tag_db', 0)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-
-                            $films_tags = new studios_tags;                            
-                            $films_tags->studio_id = $last_id;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->tag_db = 0;
-                            $films_tags->save();
-                            $last_id_db = $films_tags->id;
-                        }
-                        
-                        
-                    }
-
-                    
-                }
-            }
-        }
-
-
-
-        $multiTagFilms = $request -> input('multiTagFilms');
-        // add new tags for films 
-        if(!empty($multiTagFilms))
-        {
-            foreach ($multiTagFilms as $key=>$tag) 
-            {
-
-                $query = DB::table('tags')
-                ->where('name', '=', $tag)
-                ->get();
-                
-                $tagscount = $query->count();
-
-                if($tagscount > 0) 
-                {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-
-                        $films_tags_db = DB::table('studios_tags')
-                        ->select('tag_id')
-                        ->where('studio_id', $last_id)
-                        ->where('tag_id', $tag_id)
-                        ->where('tag_db', 1)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-
-                            $films_tags = new studios_tags;                            
-                            $films_tags->studio_id = $last_id;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->tag_db = 1;
-                            $films_tags->save();
-                            $last_id_db = $films_tags->id;
-
-                        }
-                        
-                        
-                    }
-
-                    
-                }
-            }
-        }
+        $result1 = $this->attachTagsToStudioByName($last_id, $request->input('multiTag'), 0);
+        $result2 = $this->attachTagsToStudioByName($last_id, $request->input('multiTagFilms'), 1);
+        $last_id_db = $result1 ?? $result2;
 
         if(isset($last_id_db)) {
         
@@ -767,41 +715,16 @@ class AdminTagsStudiosController extends Controller
     // ============================ DISPLAY ALL FILMS WHERE TAGS, STARS, PRODUCTION HAVE THE SAME NAME AND TAG_DB = 0! ============================ //
     public function select_categories_studios($id)
     {
-
-
-        $films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->count();
-        
+        $films = $this->studiosForTagQuery('tags_studios', $id, 0, 'name', 'ASC')->paginate(27);
+        $count_films = $this->countStudiosForTag('tags_studios', $id, 0);
 
         $site_url_studios = '1';
-
         $info_db = 0; // show or hidde <a href> and how many films have the same tag
-
         $tags_another_studios = DB::table('tags_studios')->where('id', $id)->first();
-
         $hidden_id_tags_studios = $id;
         $admin_tags_studios_new = 0;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_studios', 'site_url_studios', 'info_db' , 'hidden_id_tags_studios', 'admin_tags_studios_new'));
-
- 
     }
 
     // ======================================================================= FILTRS ====================================================== //
@@ -809,264 +732,95 @@ class AdminTagsStudiosController extends Controller
 
     public function select_categories_studios_desc($id)
     {
-
-
-        $films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'desc')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->count();
-        
+        $films = $this->studiosForTagQuery('tags_studios', $id, 0, 'name', 'desc')->paginate(27);
+        $count_films = $this->countStudiosForTag('tags_studios', $id, 0);
 
         $site_url_studios = '1';
-
-        $info_db = 0; // show or hidde <a href> and how many films have the same tag
-
+        $info_db = 0;
         $tags_another_studios = DB::table('tags_studios')->where('id', $id)->first();
-
         $hidden_id_tags_studios = $id;
         $admin_tags_studios_old = 0;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_studios', 'site_url_studios', 'info_db', 'hidden_id_tags_studios', 'admin_tags_studios_old'));
-
- 
     }
 
     public function select_categories_studios_date_asc($id)
     {
-
-
-        $films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('created_at', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->count();
-        
+        $films = $this->studiosForTagQuery('tags_studios', $id, 0, 'created_at', 'ASC')->paginate(27);
+        $count_films = $this->countStudiosForTag('tags_studios', $id, 0);
 
         $site_url_studios = '1';
-
-        $info_db = 0; // show or hidde <a href> and how many films have the same tag
-
+        $info_db = 0;
         $tags_another_studios = DB::table('tags_studios')->where('id', $id)->first();
-
         $hidden_id_tags_studios = $id;
         $admin_tags_studios_data_asc = 0;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_studios', 'site_url_studios', 'info_db', 'hidden_id_tags_studios', 'admin_tags_studios_data_asc'));
-
- 
     }
 
     public function select_categories_studios_date_desc($id)
     {
-
-
-        $films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('created_at', 'desc')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->count();
-        
+        $films = $this->studiosForTagQuery('tags_studios', $id, 0, 'created_at', 'desc')->paginate(27);
+        $count_films = $this->countStudiosForTag('tags_studios', $id, 0);
 
         $site_url_studios = '1';
-
-        $info_db = 0; // show or hidde <a href> and how many films have the same tag
-
+        $info_db = 0;
         $tags_another_studios = DB::table('tags_studios')->where('id', $id)->first();
-
-
         $hidden_id_tags_studios = $id;
         $admin_tags_studios_data_desc = 0;
-        
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_studios', 'site_url_studios', 'info_db', 'hidden_id_tags_studios', 'admin_tags_studios_data_desc'));
-
- 
     }
 
     public function select_categories_studios_rating_asc($id)
     {
-
-
-        $films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('studios.rating', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->count();
-        
+        $films = $this->studiosForTagQuery('tags_studios', $id, 0, 'studios.rating', 'ASC')->paginate(27);
+        $count_films = $this->countStudiosForTag('tags_studios', $id, 0);
 
         $site_url_studios = '1';
-
-        $info_db = 0; // show or hidde <a href> and how many films have the same tag
-
+        $info_db = 0;
         $tags_another_studios = DB::table('tags_studios')->where('id', $id)->first();
-
-
         $hidden_id_tags_studios = $id;
         $admin_tags_studios_rating_asc= 0;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_studios', 'site_url_studios', 'info_db', 'hidden_id_tags_studios', 'admin_tags_studios_rating_asc'));
-
- 
     }
 
     public function select_categories_studios_rating_desc($id)
     {
-
-
-        $films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('studios.rating', 'desc')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->count();
-        
+        $films = $this->studiosForTagQuery('tags_studios', $id, 0, 'studios.rating', 'desc')->paginate(27);
+        $count_films = $this->countStudiosForTag('tags_studios', $id, 0);
 
         $site_url_studios = '1';
-
-        $info_db = 0; // show or hidde <a href> and how many films have the same tag
-
+        $info_db = 0;
         $tags_another_studios = DB::table('tags_studios')->where('id', $id)->first();
-
-
         $hidden_id_tags_studios = $id;
         $admin_tags_studios_rating_desc= 0;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_studios', 'site_url_studios', 'info_db', 'hidden_id_tags_studios', 'admin_tags_studios_rating_desc'));
-
- 
     }
 
     public function select_categories_studios_random($id)
     {
-
-
         $films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->inRandomOrder()
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_studios')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags_studios.id', $id)
-        ->where('studios_tags.tag_db', 0)
-        ->distinct()
-        ->count();
-        
+            ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags_studios.id')
+            ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
+            ->inRandomOrder()
+            ->select('studios.*')
+            ->where('tags_studios.id', $id)
+            ->where('studios_tags.tag_db', 0)
+            ->distinct()
+            ->paginate(27);
+        $count_films = $this->countStudiosForTag('tags_studios', $id, 0);
 
         $site_url_studios = '1';
-
-        $info_db = 0; // show or hidde <a href> and how many films have the same tag
-
+        $info_db = 0;
         $tags_another_studios = DB::table('tags_studios')->where('id', $id)->first();
-
-
         $hidden_id_tags_studios = $id;
         $admin_tags_studios_random= 0;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_studios', 'site_url_studios', 'info_db', 'hidden_id_tags_studios', 'admin_tags_studios_random'));
-
- 
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1078,36 +832,13 @@ class AdminTagsStudiosController extends Controller
     // ============================ DISPLAY ALL FILMS WHERE TAGS, STARS, PRODUCTION HAVE THE SAME NAME AND TAG_DB = 1! ============================ //
     public function select_categories_studios_db_films($id)
     {
-
-
-        $films = DB::table('tags')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags.id', $id)
-        ->where('studios_tags.tag_db', 1)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags')
-        ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags.id')
-        ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-        ->orderBy('name', 'ASC')
-        ->select('studios.*')
-        ->where('tags.id', $id)
-        ->where('studios_tags.tag_db', 1)
-        ->distinct()
-        ->count();
-        
+        $films = $this->studiosForTagQuery('tags', $id, 1, 'name', 'ASC')->paginate(27);
+        $count_films = $this->countStudiosForTag('tags', $id, 1);
 
         $site_url_studios = '1';
-
         $tags_another_studios = DB::table('tags')->where('id', $id)->first();
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_studios', 'site_url_studios'));
-
- 
     }
     //============================================================================ END ============================================================ //
 

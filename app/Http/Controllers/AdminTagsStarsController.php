@@ -24,11 +24,143 @@ class AdminTagsStarsController extends Controller
         $this->middleware('auth'); 
     }
 
+    // =========================================================================================================
+    // POMOCNICZE METODY
+    // =========================================================================================================
+
+    private function tagsStarsSorted($orderColumn = 'id', $direction = 'DESC')
+    {
+        return DB::table('tags_stars')->orderBy($orderColumn, $direction)->paginate(27);
+    }
+
+    private function attachTagToStar($starId, $tagId, $tagDb)
+    {
+        $exists = DB::table('stars_tags')
+            ->where('star_id', $starId)
+            ->where('tag_id', $tagId)
+            ->where('tag_db', $tagDb)
+            ->exists();
+
+        if (!$exists) {
+            $pivot = new stars_tags;
+            $pivot->star_id = $starId;
+            $pivot->tag_id = $tagId;
+            $pivot->tag_db = $tagDb;
+            $pivot->save();
+            return $pivot->id;
+        }
+        return null;
+    }
+
+    // $tagDb=0 -> tabela tags_stars (własne tagi gwiazd), $tagDb=1 -> tabela tags (wspólna z filmami)
+    private function attachTagsToStarByName($starId, $names, $tagDb)
+    {
+        $lastId = null;
+        if (empty($names)) {
+            return $lastId;
+        }
+        $table = $tagDb === 0 ? 'tags_stars' : 'tags';
+
+        foreach ($names as $name) {
+            $matches = DB::table($table)->where('name', '=', $name)->get();
+            foreach ($matches as $match) {
+                $id = $this->attachTagToStar($starId, $match->id, $tagDb);
+                if ($id !== null) {
+                    $lastId = $id;
+                }
+            }
+        }
+        return $lastId;
+    }
+
+    private function openStaticFolder($path)
+    {
+        if (is_dir($path)) {
+            shell_exec('start '.$path.'');
+            return redirect()->back();
+        }
+        return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+    }
+
+    private function openTagsStarsFolder($id, $folderDepth, $fileDepth = null)
+    {
+        $tags = tags_stars::find($id);
+        $string = explode("/", $tags->thumbnail);
+        $urlFolder = implode('\\', array_slice($string, 0, $folderDepth));
+
+        if (!is_dir($urlFolder)) {
+            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+        }
+
+        if ($fileDepth !== null) {
+            $urlFile = implode('\\', array_slice($string, 0, $fileDepth));
+            if (file_exists($urlFile)) {
+                shell_exec('explorer /select, '.$urlFile.'');
+            } else {
+                shell_exec('start '.$urlFolder.'');
+            }
+        } else {
+            shell_exec('start '.$urlFolder.'');
+        }
+
+        return redirect()->back();
+    }
+
+    // wspólne zapytanie dla całej rodziny select_categories_stars* — gwiazdy przypisane do tagu
+    private function starsForTagQuery($tagTable, $id, $tagDb, $orderColumn, $direction)
+    {
+        return DB::table($tagTable)
+            ->join('stars_tags', 'stars_tags.tag_id', '=', $tagTable.'.id')
+            ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
+            ->orderBy($orderColumn, $direction)
+            ->select('stars.*')
+            ->where($tagTable.'.id', $id)
+            ->where('stars_tags.tag_db', $tagDb)
+            ->distinct();
+    }
+
+    private function countStarsForTag($tagTable, $id, $tagDb)
+    {
+        return $this->starsForTagQuery($tagTable, $id, $tagDb, 'name', 'ASC')->count();
+    }
+
+    private function renderEntityCard($url, $urlEdit, $urlDelete, $thumbnail, $count, $name)
+    {
+        return '
+            <div class="entity-col">
+                <a href="'.$url.'" class="entity-card">
+                    <div class="entity-card__media">
+                        <img src="'.$thumbnail.'" alt="'.htmlspecialchars($name).'" loading="lazy">
+                        <div class="film_number_search"><i class="fas fa-tag"></i>&nbsp;&nbsp;'.$count.'</div>
+                    </div>
+                    <div class="entity-card__body">'.htmlspecialchars($name).'</div>
+                </a>
+                <div class="jssearch" style="display:flex; gap:8px; margin-top:8px;">
+                    <a href="'.$urlEdit.'" class="btn btn-info">Edytuj</a>
+                    <a href="'.$urlDelete.'" class="btn btn-danger">Usuń</a>
+                </div>
+            </div>
+        ';
+    }
+
+    private function renderEmptySearchResult()
+    {
+        return '
+            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
+                <div class="alert alert-danger">
+                    <ul>
+                        Przepraszamy ale nie mamy tego czego szukasz :/
+                    </ul>
+                </div>
+            </div>
+        ';
+    }
+
 
     public function tags_stars(){
 
-        $tags = DB::table('tags_stars')->orderBy('id', 'DESC')->paginate(27);
-        $all_tags = DB::table('tags_stars')->orderBy('id', 'DESC')->paginate(27);
+        $tags = $this->tagsStarsSorted('id', 'DESC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_stars')->count();
         return view('admin.tags.admin_tags_stars',compact('tags', 'count_tags', 'all_tags'));
        
@@ -40,8 +172,8 @@ class AdminTagsStarsController extends Controller
 
     public function tags_stars_id_asc(){
 
-        $tags = DB::table('tags_stars')->orderBy('id', 'ASC')->paginate(27);
-        $all_tags = DB::table('tags_stars')->orderBy('id', 'ASC')->paginate(27);
+        $tags = $this->tagsStarsSorted('id', 'ASC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_stars')->count();
         return view('admin.tags.admin_tags_stars',compact('tags', 'count_tags', 'all_tags'));
        
@@ -49,8 +181,8 @@ class AdminTagsStarsController extends Controller
 
     public function tags_stars_name_asc(){
 
-        $tags = DB::table('tags_stars')->orderBy('name', 'ASC')->paginate(27);
-        $all_tags = DB::table('tags_stars')->orderBy('name', 'ASC')->paginate(27);
+        $tags = $this->tagsStarsSorted('name', 'ASC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_stars')->count();
         return view('admin.tags.admin_tags_stars',compact('tags', 'count_tags', 'all_tags'));
        
@@ -58,8 +190,8 @@ class AdminTagsStarsController extends Controller
 
     public function tags_stars_name_desc(){
 
-        $tags = DB::table('tags_stars')->orderBy('name', 'DESC')->paginate(27);
-        $all_tags = DB::table('tags_stars')->orderBy('name', 'DESC')->paginate(27);
+        $tags = $this->tagsStarsSorted('name', 'DESC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_stars')->count();
         return view('admin.tags.admin_tags_stars',compact('tags', 'count_tags', 'all_tags'));
        
@@ -101,10 +233,6 @@ class AdminTagsStarsController extends Controller
         $resize_img = $request -> input('resize_img');
         $height_img = $request -> input('height_img');
         $width_img = $request -> input('width_img');
-
-        if(!is_null($height_img) && !is_null($width_img)){
-            echo "podana wysokość to".$height_img;
-        }
 
 
 
@@ -210,75 +338,17 @@ class AdminTagsStarsController extends Controller
 
     //================================================================ Open folders tags_stars ==================================================== //
     public function open_main_folder_tags_stars() {
-
- 
-        $url_film = "..\\..\\filmy\\thumbnail\\tags_stars\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
-    }
-    //========================================================================= END =============================================================== //
-   
-
-    //================================================== Open folders thumbnail in edit_tags blade ================================================ //
-       public function open_folder_tags_stars($id) {
-
-        $tags = tags_stars::find($id);
-
-  
-        $url_thumbnail = $tags->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 4));
-
-
-        if (is_dir($url_film)){
-            shell_exec('start '.$url_film.'');
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openStaticFolder("..\\..\\filmy\\thumbnail\\tags_stars\\");
     }
 
-    //==================================================================== END ==================================================================== //
 
-    
-    //============================================================ Open folders tags_stars and select id ========================================== //
+    public function open_folder_tags_stars($id) {
+        return $this->openTagsStarsFolder($id, 4);
+    }
+
+
     public function open_folder_tags_next_stars($id) {
-
-        $tags = tags_stars::find($id);
-
-  
-        $url_thumbnail = $tags->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 5));
-        $url_filmm = implode('\\', array_slice($string, 0, 6));
-
-
-        if (is_dir($url_film)){
-            if(file_exists($url_filmm)){
-            shell_exec('explorer /select, '.$url_filmm.'');
-            }
-            else
-            {
-                shell_exec('start'.$url_film.'');
-            }
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openTagsStarsFolder($id, 5, 6);
     }
 
     //==================================================================== END ==================================================================== //
@@ -513,8 +583,6 @@ class AdminTagsStarsController extends Controller
         ->Orwhere('id', 'like', '%'.$searchTerm.'%')
         ->count();
 
-
-
         if($count>0){
 
         foreach($tags as $tags){
@@ -524,59 +592,18 @@ class AdminTagsStarsController extends Controller
         $url = url('/edit_tags_stars',$id);
         $url_delete = url('/delete_files_from_admin_search_tags_stars',$id);
         
-        $count_films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $count_films = $this->countStarsForTag('tags_stars', $id, 0);
 
         $url_films = url('/select_categories_stars',$id);
 
-        echo '
-        <div class="col-sm-3 ">
-                <div class=" m-2 ">
-                    <div class="card video-wrapper" style="background-color: #F5F5F5;">
-
-                    <img src="'.$thumbnail.'" height="270" ></img>
-                    
-                    <a href="'.$url_films.'">
-                        <div class="film_number_search">
-                            <i class="fas fa-tag">&nbsp;&nbsp;'.$count_films.'</i>
-                        </div>
-                    </a>
-                        
-                    <div class="card-body jssearch">
-                        <p class="card-text">'.$name.'</p>
-                    </div>
-
-                    <div class="jssearch">
-                    <a href="'.$url.'" class="btn btn-info">Edytuj</a>
-                    <a href="'.$url_delete.'" class="btn btn-danger">Usuń</a>
-                    </div>
-
-                    </div>
-                </div>
-            </div>
-        ';
+        echo $this->renderEntityCard($url_films, $url, $url_delete, $thumbnail, $count_films, $name);
         
         }
 
         }
         else
         {
-            echo '
-            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
-                <div class="alert alert-danger">
-                    <ul>
-                        Przepraszamy ale nie mamy tego czego szukasz :/
-                    </ul>
-                </div>
-            </div>
-            '; 
+            echo $this->renderEmptySearchResult();
         }
 
         
@@ -662,94 +689,10 @@ class AdminTagsStarsController extends Controller
     public function stars_tag_add_edit_site(Request $request){
 
         $last_id = $request -> input('id');
-        $multiTag = $request -> input('multiTag');
-        // add new tags for films 
-        if(!empty($multiTag))
-        {
-            foreach ($multiTag as $key=>$tag) 
-            {
 
-                $query = DB::table('tags_stars')
-                ->where('name', '=', $tag)
-                ->get();
-                
-                $tagscount = $query->count();
-
-                if($tagscount > 0) 
-                {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-
-                        $films_tags_db = DB::table('stars_tags')
-                        ->select('tag_id')
-                        ->where('star_id', $last_id)
-                        ->where('tag_id', $tag_id)
-                        ->where('tag_db', 0)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-
-                            $films_tags = new stars_tags;                            
-                            $films_tags->star_id = $last_id;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->tag_db = 0;
-                            $films_tags->save();
-                            $last_id_db = $films_tags->id;
-                            
-                        }
-                        
-                        
-                    }
-
-                    
-                }
-            }
-        }
-
-
-        $multiTagFilms = $request -> input('multiTagFilms');
-        // add new tags for films 
-        if(!empty($multiTagFilms))
-        {
-            foreach ($multiTagFilms as $key=>$tag) 
-            {
-
-                $query = DB::table('tags')
-                ->where('name', '=', $tag)
-                ->get();
-                
-                $tagscount = $query->count();
-
-                if($tagscount > 0) 
-                {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-
-                        $films_tags_db = DB::table('stars_tags')
-                        ->select('tag_id')
-                        ->where('star_id', $last_id)
-                        ->where('tag_id', $tag_id)
-                        ->where('tag_db', 1)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-
-                            $films_tags = new stars_tags;                            
-                            $films_tags->star_id = $last_id;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->tag_db = 1;
-                            $films_tags->save();
-                            $last_id_db = $films_tags->id;
-
-                        }
-                        
-                        
-                    }
-
-                    
-                }
-            }
-        }
+        $result1 = $this->attachTagsToStarByName($last_id, $request->input('multiTag'), 0);
+        $result2 = $this->attachTagsToStarByName($last_id, $request->input('multiTagFilms'), 1);
+        $last_id_db = $result1 ?? $result2;
 
         if(isset($last_id_db)) {
         
@@ -761,7 +704,6 @@ class AdminTagsStarsController extends Controller
         }
         
     }
-    //==================================================================== END ==================================================================== //
     
 
 
@@ -770,41 +712,16 @@ class AdminTagsStarsController extends Controller
 
     public function select_categories_stars($id)
     {
-
-
-        $films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->starsForTagQuery('tags_stars', $id, 0, 'name', 'ASC')->paginate(27);
+        $count_films = $this->countStarsForTag('tags_stars', $id, 0);
 
         $site_url_stars = '1';
-
         $info_db = 0;
-
-
         $tags_another = DB::table('tags_stars')->where('id', $id)->first();
-
         $hidden_id_tags_stars = $id;
         $admin_tags_star_new = 0;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another', 'site_url_stars', 'info_db', 'hidden_id_tags_stars', 'admin_tags_star_new'));
-
- 
     }
 
 
@@ -813,296 +730,116 @@ class AdminTagsStarsController extends Controller
 
     public function select_categories_stars_desc($id)
     {
-
-
-        $films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'desc')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->starsForTagQuery('tags_stars', $id, 0, 'name', 'desc')->paginate(27);
+        $count_films = $this->countStarsForTag('tags_stars', $id, 0);
 
         $site_url_stars = '1';
-
         $info_db = 0;
-
-
         $tags_another = DB::table('tags_stars')->where('id', $id)->first();
-
         $hidden_id_tags_stars = $id;
         $admin_tags_star_old = 0;
 
-
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another', 'site_url_stars', 'info_db', 'hidden_id_tags_stars', 'admin_tags_star_old'));
-
- 
     }
 
 
     public function select_categories_stars_date_asc($id)
     {
-
-
-        $films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('created_at', 'asc')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->starsForTagQuery('tags_stars', $id, 0, 'created_at', 'asc')->paginate(27);
+        $count_films = $this->countStarsForTag('tags_stars', $id, 0);
 
         $site_url_stars = '1';
-
         $info_db = 0;
-
-
         $tags_another = DB::table('tags_stars')->where('id', $id)->first();
-
         $hidden_id_tags_stars = $id;
         $admin_tags_star_data_asc = 0;
 
-
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another', 'site_url_stars', 'info_db', 'hidden_id_tags_stars', 'admin_tags_star_data_asc'));
-
- 
     }
 
 
     public function select_categories_stars_date_desc($id)
     {
-
-
-        $films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('created_at', 'desc')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->starsForTagQuery('tags_stars', $id, 0, 'created_at', 'desc')->paginate(27);
+        $count_films = $this->countStarsForTag('tags_stars', $id, 0);
 
         $site_url_stars = '1';
-
         $info_db = 0;
-
-
         $tags_another = DB::table('tags_stars')->where('id', $id)->first();
-
         $hidden_id_tags_stars = $id;
         $admin_tags_star_data_desc = 0;
 
-
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another', 'site_url_stars', 'info_db', 'hidden_id_tags_stars', 'admin_tags_star_data_desc'));
-
- 
     }
 
 
     public function select_categories_stars_rating_asc($id)
     {
-
-
-        $films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('stars.rating', 'asc')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->starsForTagQuery('tags_stars', $id, 0, 'stars.rating', 'asc')->paginate(27);
+        $count_films = $this->countStarsForTag('tags_stars', $id, 0);
 
         $site_url_stars = '1';
-
         $info_db = 0;
-
-
         $tags_another = DB::table('tags_stars')->where('id', $id)->first();
-
         $hidden_id_tags_stars = $id;
         $admin_tags_star_rating_asc= 0;
 
-
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another', 'site_url_stars', 'info_db', 'hidden_id_tags_stars', 'admin_tags_star_rating_asc'));
-
- 
     }
 
     public function select_categories_stars_rating_desc($id)
     {
-
-
-        $films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('stars.rating', 'desc')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->starsForTagQuery('tags_stars', $id, 0, 'stars.rating', 'desc')->paginate(27);
+        $count_films = $this->countStarsForTag('tags_stars', $id, 0);
 
         $site_url_stars = '1';
-
         $info_db = 0;
-
-
         $tags_another = DB::table('tags_stars')->where('id', $id)->first();
-
         $hidden_id_tags_stars = $id;
         $admin_tags_star_rating_desc = 0;
 
-
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another', 'site_url_stars', 'info_db', 'hidden_id_tags_stars', 'admin_tags_star_rating_desc'));
-
- 
     }
 
 
     public function select_categories_stars_random($id)
     {
-
-
         $films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->inRandomOrder()
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_stars')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags_stars.id', $id)
-        ->where('stars_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+            ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags_stars.id')
+            ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
+            ->inRandomOrder()
+            ->select('stars.*')
+            ->where('tags_stars.id', $id)
+            ->where('stars_tags.tag_db', 0)
+            ->distinct()
+            ->paginate(27);
+        $count_films = $this->countStarsForTag('tags_stars', $id, 0);
 
         $site_url_stars = '1';
-
         $info_db = 0;
-
-
         $tags_another = DB::table('tags_stars')->where('id', $id)->first();
-
         $hidden_id_tags_stars = $id;
         $admin_tags_star_random = 0;
 
-
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another', 'site_url_stars', 'info_db', 'hidden_id_tags_stars', 'admin_tags_star_random'));
-
- 
     }
-
-
-
-
-
-
-
-
-
-
-
-    //==================================================================== END ==================================================================== //
 
 
     // ============================ DISPLAY ALL FILMS WHERE TAGS, STARS, PRODUCTION HAVE THE SAME NAME AND TAG_DB = 1! ============================ //
 
     public function select_categories_stars_db_films($id)
     {
-
-
-        $films = DB::table('tags')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags.id', $id)
-        ->where('stars_tags.tag_db', 1)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags')
-        ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags.id')
-        ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-        ->orderBy('name', 'ASC')
-        ->select('stars.*')
-        ->where('tags.id', $id)
-        ->where('stars_tags.tag_db', 1)
-        ->distinct()
-        ->count();
+        $films = $this->starsForTagQuery('tags', $id, 1, 'name', 'ASC')->paginate(27);
+        $count_films = $this->countStarsForTag('tags', $id, 1);
 
         $site_url_stars = '1';
-
-
         $tags_another = DB::table('tags')->where('id', $id)->first();
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another', 'site_url_stars'));
-
- 
     }
+
+    //==================================================================== END ==================================================================== //
+
 
     //==================================================================== END ==================================================================== //
 

@@ -21,84 +21,55 @@ class AdminVideoController extends Controller
     {
         $this->middleware('auth'); 
     }
+
+    // =========================================================================================================
+    // POMOCNICZE METODY — jedyna bezpieczna duplikacja w tym pliku: sprawdzenie
+    // dostępności ffmpeg przed pokazaniem formularza i otwieranie stałych
+    // folderów. Cała reszta (join_save/cut_save/cut_image_save/
+    // simply_convert_save/convert_save) to rzeczywiste przetwarzanie wideo
+    // przez ffmpeg — nietknięte, zbyt ryzykowne bez możliwości testów.
+    // =========================================================================================================
+
+    private function viewIfFfmpegAvailable($view)
+    {
+        $check = shell_exec('ffmpeg -h');
+
+        if (!empty($check)) {
+            return view($view);
+        }
+        return view($view)->with('errorsMsg', "UWAGA!!! ");
+    }
+
+    private function openStaticFolder($path)
+    {
+        if (is_dir($path)) {
+            shell_exec('start '.$path.'');
+            return redirect()->back();
+        }
+        return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+    }
  
     //==================================================================== CUT =========================================================== //
 
     public function cut(){
-
-        $check = shell_exec('ffmpeg -h');
-
-        if (!empty($check)){
-            return view('admin.cut_films');
-        }else{
-
-            return view('admin.cut_films')->with('errorsMsg',"UWAGA!!! ");
-
-        }
-    
+        return $this->viewIfFfmpegAvailable('admin.cut_films');
     }
 
     public function join(){
-
-        $check = shell_exec('ffmpeg -h');
-
-        if (!empty($check)){
-            return view('admin.join_films');
-        }else{
-
-            return view('admin.join_films')->with('errorsMsg',"UWAGA!!! ");
-
-        }
-    
+        return $this->viewIfFfmpegAvailable('admin.join_films');
     }
 
     public function open_main_folder_cut() {
-
- 
-        $url_film = "..\\..\\filmy\\cut\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openStaticFolder("..\\..\\filmy\\cut\\");
     }
 
 
     public function open_main_folder_join() {
-
- 
-        $url_film = "..\\..\\filmy\\join\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openStaticFolder("..\\..\\filmy\\join\\");
     }
 
     public function open_main_folder_conversion() {
-
- 
-        $url_film = "..\\..\\filmy\\conversion\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openStaticFolder("..\\..\\filmy\\conversion\\");
     }
 
 
@@ -427,17 +398,7 @@ class AdminVideoController extends Controller
 
     //==================================================================== CUT IMAGE =========================================================== //
     public function cut_image(){
-
-        $check = shell_exec('ffmpeg -h');
-
-        if (!empty($check)){
-            return view('admin.cut_image');
-        }else{
-
-            return view('admin.cut_image')->with('errorsMsg',"UWAGA!!! ");
-
-        }
-    
+        return $this->viewIfFfmpegAvailable('admin.cut_image');
     }
     //==================================================================== END =========================================================== //
 
@@ -585,16 +546,7 @@ class AdminVideoController extends Controller
     //==================================================================== SIMPLY CONVERSION =========================================================== //
 
     public function simply_conversion(){
-
-        $check = shell_exec('ffmpeg -h');
-
-        if (!empty($check)){
-            return view('admin.simply_conversion_films');
-        }else{
-
-            return view('admin.simply_conversion_films')->with('errorsMsg',"UWAGA!!! ");
-       
-        }
+        return $this->viewIfFfmpegAvailable('admin.simply_conversion_films');
     }
 
 
@@ -695,16 +647,7 @@ class AdminVideoController extends Controller
     //==================================================================== CONVERSION =========================================================== //
 
     public function conversion(){
-
-        $check = shell_exec('ffmpeg -h');
-
-        if (!empty($check)){
-            return view('admin.conversion_films');
-        }else{
-
-            return view('admin.conversion_films')->with('errorsMsg',"UWAGA!!! ");
-       
-        }
+        return $this->viewIfFfmpegAvailable('admin.conversion_films');
     }
 
     

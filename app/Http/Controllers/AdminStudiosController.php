@@ -25,12 +25,119 @@ class AdminStudiosController extends Controller
         $this->middleware('auth'); 
     }
 
+    // =========================================================================================================
+    // POMOCNICZE METODY
+    // =========================================================================================================
+
+    private function studiosSorted($orderColumn = 'id', $direction = 'DESC')
+    {
+        return DB::table('studios')->orderBy($orderColumn, $direction)->paginate(27);
+    }
+
+    private function attachStudioTag($studioId, $tagId, $tagDb)
+    {
+        $exists = DB::table('studios_tags')
+            ->where('studio_id', $studioId)
+            ->where('tag_id', $tagId)
+            ->where('tag_db', $tagDb)
+            ->exists();
+
+        if (!$exists) {
+            $pivot = new studios_tags;
+            $pivot->studio_id = $studioId;
+            $pivot->tag_id = $tagId;
+            $pivot->tag_db = $tagDb;
+            $pivot->save();
+        }
+    }
+
+    // $tagDb=0 -> tabela tags_studios (własne tagi wytwórni), $tagDb=1 -> tabela tags (wspólna z filmami)
+    private function attachStudioTagsByName($studioId, $names, $tagDb)
+    {
+        if (empty($names)) {
+            return;
+        }
+        $table = $tagDb === 0 ? 'tags_studios' : 'tags';
+
+        foreach ($names as $name) {
+            $matches = DB::table($table)->where('name', '=', $name)->get();
+            foreach ($matches as $match) {
+                $this->attachStudioTag($studioId, $match->id, $tagDb);
+            }
+        }
+    }
+
+    private function openStaticFolder($path)
+    {
+        if (is_dir($path)) {
+            shell_exec('start '.$path.'');
+            return redirect()->back();
+        }
+        return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+    }
+
+    private function openStudioFolder($id, $folderDepth, $fileDepth = null)
+    {
+        $studio = studios::find($id);
+        $string = explode("/", $studio->thumbnail);
+        $urlFolder = implode('\\', array_slice($string, 0, $folderDepth));
+
+        if (!is_dir($urlFolder)) {
+            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+        }
+
+        if ($fileDepth !== null) {
+            $urlFile = implode('\\', array_slice($string, 0, $fileDepth));
+            if (file_exists($urlFile)) {
+                shell_exec('explorer /select, '.$urlFile.'');
+            } else {
+                shell_exec('start '.$urlFolder.'');
+            }
+        } else {
+            shell_exec('start '.$urlFolder.'');
+        }
+
+        return redirect()->back();
+    }
+
+    private function renderFilmSearchCard($url, $urlEdit, $urlDelete, $thumbnail, $count, $name)
+    {
+        return '
+            <div class="entity-col">
+                <a href="'.$url.'" class="entity-card">
+                    <div class="entity-card__media">
+                        <img src="'.$thumbnail.'" alt="'.htmlspecialchars($name).'" loading="lazy">
+                        <div class="film_number_search"><i class="fas fa-video"></i>&nbsp;&nbsp;'.$count.'</div>
+                    </div>
+                    <div class="entity-card__body">'.htmlspecialchars($name).'</div>
+                </a>
+                <div class="jssearch" style="display:flex; gap:8px; margin-top:8px;">
+                    <a href="'.$urlEdit.'" class="btn btn-info">Edytuj</a>
+                    <a href="'.$urlDelete.'" class="btn btn-danger">Usuń</a>
+                </div>
+            </div>
+        ';
+    }
+
+    private function renderEmptySearchResult()
+    {
+        return '
+            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
+                <div class="alert alert-danger">
+                    <ul>
+                        Przepraszamy ale nie mamy tego czego szukasz :/
+                    </ul>
+                </div>
+            </div>
+        ';
+    }
+
     
    //==================================================================== ADMIN TABLE STUDIOS =========================================================== //
    public function studios(){
 
-    $studios = DB::table('studios')->orderBy('id', 'DESC')->paginate(27);
-    $all_studios = DB::table('studios')->orderBy('id', 'DESC')->paginate(27);
+    $studios = $this->studiosSorted('id', 'DESC');
+    $all_studios = $studios;
     $count_studios = DB::table('studios')->count();
     return view('admin.admin_studios',compact('studios', 'count_studios', 'all_studios'));
     
@@ -42,8 +149,8 @@ class AdminStudiosController extends Controller
 
     public function studios_id_asc(){
 
-        $studios = DB::table('studios')->orderBy('id', 'ASC')->paginate(27);
-        $all_studios = DB::table('studios')->orderBy('id', 'ASC')->paginate(27);
+        $studios = $this->studiosSorted('id', 'ASC');
+        $all_studios = $studios;
         $count_studios = DB::table('studios')->count();
         return view('admin.admin_studios',compact('studios', 'count_studios', 'all_studios'));
     
@@ -51,8 +158,8 @@ class AdminStudiosController extends Controller
 
     public function studios_name_asc(){
 
-        $studios = DB::table('studios')->orderBy('name', 'ASC')->paginate(27);
-        $all_studios = DB::table('studios')->orderBy('name', 'ASC')->paginate(27);
+        $studios = $this->studiosSorted('name', 'ASC');
+        $all_studios = $studios;
         $count_studios = DB::table('studios')->count();
         return view('admin.admin_studios',compact('studios', 'count_studios', 'all_studios'));
     
@@ -60,8 +167,8 @@ class AdminStudiosController extends Controller
 
     public function studios_name_desc(){
 
-        $studios = DB::table('studios')->orderBy('name', 'DESC')->paginate(27);
-        $all_studios = DB::table('studios')->orderBy('name', 'DESC')->paginate(27);
+        $studios = $this->studiosSorted('name', 'DESC');
+        $all_studios = $studios;
         $count_studios = DB::table('studios')->count();
         return view('admin.admin_studios',compact('studios', 'count_studios', 'all_studios'));
     
@@ -69,8 +176,8 @@ class AdminStudiosController extends Controller
 
     public function studios_rating_asc(){
 
-        $studios = DB::table('studios')->orderBy('rating', 'ASC')->paginate(27);
-        $all_studios = DB::table('studios')->orderBy('rating', 'ASC')->paginate(27);
+        $studios = $this->studiosSorted('rating', 'ASC');
+        $all_studios = $studios;
         $count_studios = DB::table('studios')->count();
         return view('admin.admin_studios',compact('studios', 'count_studios', 'all_studios'));
     
@@ -78,8 +185,8 @@ class AdminStudiosController extends Controller
 
     public function studios_rating_desc(){
 
-        $studios = DB::table('studios')->orderBy('rating', 'DESC')->paginate(27);
-        $all_studios = DB::table('studios')->orderBy('rating', 'DESC')->paginate(27);
+        $studios = $this->studiosSorted('rating', 'DESC');
+        $all_studios = $studios;
         $count_studios = DB::table('studios')->count();
         return view('admin.admin_studios',compact('studios', 'count_studios', 'all_studios'));
     
@@ -201,92 +308,8 @@ class AdminStudiosController extends Controller
             $last_id_db = $studios->id;
 
 
-            $multiTag = $request -> input('multiTag');
-            // add new tags for films 
-            if(!empty($multiTag))
-            {
-                foreach ($multiTag as $key=>$tag) 
-                {
-    
-                    $query = DB::table('tags_studios')
-                    ->where('name', '=', $tag)
-                    ->get();
-                    
-                    $tagscount = $query->count();
-    
-                    if($tagscount > 0) 
-                    {
-                        foreach ($query as $tags) {
-                            $tag_id = $tags->id;
-    
-                            $films_tags_db = DB::table('studios_tags')
-                            ->select('tag_id')
-                            ->where('studio_id', $last_id)
-                            ->where('tag_id', $tag_id)
-                            ->where('tag_db', 0)
-                            ->get();
-    
-                            if($films_tags_db->isEmpty()){
-    
-                                $films_tags = new studios_tags;                            
-                                $films_tags->studio_id = $last_id;
-                                $films_tags->tag_id = $tag_id;
-                                $films_tags->tag_db = 0;
-                                $films_tags->save();
-    
-                            }
-                            
-                            
-                        }
-    
-                        
-                    }
-                }
-            }
-
-
-            $multiTagFilms = $request -> input('multiTagFilms');
-            // add new tags for films 
-            if(!empty($multiTagFilms))
-            {
-                foreach ($multiTagFilms as $key=>$tag) 
-                {
-    
-                    $query = DB::table('tags')
-                    ->where('name', '=', $tag)
-                    ->get();
-                    
-                    $tagscount = $query->count();
-    
-                    if($tagscount > 0) 
-                    {
-                        foreach ($query as $tags) {
-                            $tag_id = $tags->id;
-    
-                            $films_tags_db = DB::table('studios_tags')
-                            ->select('tag_id')
-                            ->where('studio_id', $last_id)
-                            ->where('tag_id', $tag_id)
-                            ->where('tag_db', 1)
-                            ->get();
-    
-                            if($films_tags_db->isEmpty()){
-    
-                                $films_tags = new studios_tags;                            
-                                $films_tags->studio_id = $last_id;
-                                $films_tags->tag_id = $tag_id;
-                                $films_tags->tag_db = 1;
-                                $films_tags->save();
-    
-                            }
-                            
-                            
-                        }
-    
-                        
-                    }
-                }
-            }
+            $this->attachStudioTagsByName($last_id, $request->input('multiTag'), 0);
+            $this->attachStudioTagsByName($last_id, $request->input('multiTagFilms'), 1);
 
 
 
@@ -342,71 +365,18 @@ class AdminStudiosController extends Controller
 
 
     public function open_main_folder_studios() {
-
- 
-        $url_film = "..\\..\\filmy\\thumbnail\\studios\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openStaticFolder("..\\..\\filmy\\thumbnail\\studios\\");
     }
 
 
     public function open_folder_studios($id) {
-
-        $tags = studios::find($id);
-
-  
-        $url_thumbnail = $tags->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 4));
-
-
-        if (is_dir($url_film)){
-            shell_exec('start '.$url_film.'');
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openStudioFolder($id, 4);
     }
 
     public function open_folder_studios_next($id) {
-
-        $tags = studios::find($id);
-
-  
-        $url_thumbnail = $tags->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 5));
-        $url_filmm = implode('\\', array_slice($string, 0, 6));
-
-
-        if (is_dir($url_film)){
-            if(file_exists($url_filmm)){
-            shell_exec('explorer /select, '.$url_filmm.'');
-            }
-            else
-            {
-                shell_exec('start'.$url_film.'');
-            }
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openStudioFolder($id, 5, 6);
     }
-    //==================================================================== END ====================================================================== //
+
 
 
 
@@ -689,47 +659,13 @@ class AdminStudiosController extends Controller
             ->distinct()
             ->count();
 
-
-            echo '
-            <div class="col-sm-3 ">
-                <div class=" m-2 ">
-                    <div class="card video-wrapper" style="background-color: #F5F5F5;">
-
-                    <img src="'.$thumbnail.'" height="270" ></img>
-
-                    <a href="'.$url_films.'">
-                    <div class="film_number_search">
-                        <i class="fas fa-video">&nbsp;&nbsp;'.$count_films.'</i>
-                    </div>
-                    </a>
-                        
-                    <div class="card-body jssearch">
-                        <p class="card-text">'.$name.'</p>
-                    </div>
-
-                    <div class="jssearch">
-                    <a href="'.$url.'" class="btn btn-info">Edytuj</a>
-                    <a href="'.$url_delete.'" class="btn btn-danger">Usuń</a>
-                    </div>
-
-                    </div>
-                </div>
-            </div>
-            ';
+            echo $this->renderFilmSearchCard($url_films, $url, $url_delete, $thumbnail, $count_films, $name);
         }
 
         }
         else
         {
-            echo '
-            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
-                <div class="alert alert-danger">
-                    <ul>
-                        Przepraszamy ale nie mamy tego czego szukasz :/
-                    </ul>
-                </div>
-            </div>
-            '; 
+            echo $this->renderEmptySearchResult();
         }
         
     }

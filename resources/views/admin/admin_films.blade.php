@@ -5,244 +5,181 @@
 
 
 @section('content')
-<button onclick="topFunction()" id="myBtn">Top</button> 
 
-<div class="col-sm-12 text-center">
-  <div class="col-sm-12 text-center" style="padding-bottom: 10px;">
-    <ul>
-      <h2>Filmy</h2>
-      <a class="btn btn-outline-primary fas fa-folder-open fa-film" href="{{url('/open_main_folder_film')}}" style="margin-bottom: 20px;"> FILMY </a>
-      <a class="btn btn-outline-primary fas fa-folder-open" href="{{url('/open_main_folder_thumbnail')}}" style="margin-bottom: 20px;"> ZDJĘCIA </a>
-      <a class="btn btn-outline-primary fas fa-folder-open" href="{{url('/open_main_folder_short')}}" style="margin-bottom: 20px;"> SHORT </a>
-    </ul>
-    
-  </div>
-    
-  @if( $count_films >0 )
-    <!-- Mesage return when backup   --> 
-    <div class="col-sm-12 text-center" style="padding-top: 5px; padding-bottom: 5px">
-    
-        @if (\Session::has('success'))
-        <div class="alert alert-success">
-            <ul>
-                {!! \Session::get('success') !!}
-            </ul>
+<div class="admin-page">
+
+    <div class="admin-page__header">
+        <h1 class="admin-page__title">Filmy</h1>
+        <div class="admin-quicklinks">
+            <a href="{{url('/open_main_folder_film')}}" class="admin-quicklink">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Filmy
+            </a>
+            <a href="{{url('/open_main_folder_thumbnail')}}" class="admin-quicklink">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Zdjęcia
+            </a>
+            <a href="{{url('/open_main_folder_short')}}" class="admin-quicklink">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Short
+            </a>
         </div>
-        @endif
-
-        @if (\Session::has('errors'))
-        <div class="alert alert-danger">
-            <ul>
-                {!! \Session::get('errors') !!}
-            </ul>
-        </div>
-        @endif
-
     </div>
 
+    @if (\Session::has('success'))
+    <div class="alert alert-success">
+        <ul>{!! \Session::get('success') !!}</ul>
+    </div>
+    @endif
 
+    @if (\Session::has('errors'))
+    <div class="alert alert-danger">
+        <ul>{!! \Session::get('errors') !!}</ul>
+    </div>
+    @endif
 
+    @if( $count_films > 0 )
 
-
-
-
-  <div style="float: right; float: right; padding-top: 18px; margin-bottom:10px;" >
-
-   
-
-    <a class="btn btn-danger" href="{{url('/admin_films_off')}}" >Wyłącz Wszystkie Filmy</a>
-    <a class="btn btn-success" href="{{url('/admin_films_on')}}" >Włącz Wszystkie Filmy</a>
-    
-    <button class="btn btn-danger" data-toggle="modal" data-target="#delete_all">Usuń Wszystkie Filmy</button>
-    <a href="{{url('/add_films')}}" ><button class="btn btn-success">Dodaj Nowy Film</button></a>
-    
-
-    
-  </div>
-
-<div class="col-sm-12">
-
-    <div class="" style="float:left;">             
-        <div class="input-group" style="padding-top: 18px; margin-bottom:10px; width: 300px;">
-            <input type="text" name="search_tag" id="search_tag" class="form-control" placeholder="Szukaj po id, tytule, nazwie pliku.">
+        <div class="admin-toolbar">
+            <div class="admin-toolbar__search">
+                <input type="text" name="search_tag" id="search_tag" class="form-control" placeholder="Szukaj po id, tytule, nazwie pliku…">
+            </div>
+            <div class="admin-toolbar__actions">
+                <a class="btn btn-danger" href="{{url('/admin_films_off')}}">Wyłącz wszystkie</a>
+                <a class="btn btn-success" href="{{url('/admin_films_on')}}">Włącz wszystkie</a>
+                <button class="btn btn-danger" data-toggle="modal" data-target="#delete_all">Usuń wszystkie</button>
+                <a href="{{url('/add_films')}}" class="btn btn-success">+ Dodaj nowy film</a>
+            </div>
         </div>
-    </div>          
 
-</div>
+        <div class="admin-search-grid" id="result"></div>
 
-<div class="col-sm-12 row" id="result"></div>
-    
-    
+        <script>
+        $(document).ready(function(){
 
+            function load_data(query)
+            {
+                $.ajaxSetup({
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+                });
 
-<script>
-$(document).ready(function(){
-	
-	function load_data(query)
-	{
-        // crfs 
-        $.ajaxSetup({
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                $.ajax({
+                    url:"{{url('/searchfilms_admin')}}",
+                    method:"post",
+                    data:{query:query},
+                    success:function(data)
+                    {
+                        $('#result').html(data);
+                    }
+                });
             }
+
+            $('#search_tag').keyup(function(){
+                var search = $(this).val();
+                if(search != '')
+                {
+                    load_data(search);
+                }
+            });
         });
-    
-		$.ajax({
-			url:"{{url('/searchfilms_admin')}}",
-			method:"post",
-			data:{query:query},
-			success:function(data)
-			{
-            
-               $('#result').html(data);
-           
-			}
-		});
-	}
-	
-	$('#search_tag').keyup(function(){
-		var search = $(this).val();
-		if(search != '')
-		{
-			load_data(search);
-		}
+        </script>
 
-	});
-});
-</script>
+        <div class="table-responsive-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col" style="width: 10%">
+                            <div class="th-sort">
+                                #
+                                <span class="th-sort__arrows">
+                                    <a href="{{url('/admin_films')}}" title="Rosnąco"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 15l-6-6-6 6"/></svg></a>
+                                    <a href="{{url('films_id_asc')}}" title="Malejąco"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></a>
+                                </span>
+                            </div>
+                        </th>
 
+                        <th scope="col" style="width: 40%">
+                            <div class="th-sort">
+                                Nazwa
+                                <span class="th-sort__arrows">
+                                    <a href="{{url('/films_name_asc')}}" title="A–Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 15l-6-6-6 6"/></svg></a>
+                                    <a href="{{url('/films_name_desc')}}" title="Z–A"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></a>
+                                </span>
+                            </div>
+                        </th>
 
+                        <th scope="col" style="width: 15%">
+                            <div class="th-sort">
+                                Status
+                                <span class="th-sort__arrows">
+                                    <a href="{{url('/films_on_desc')}}" title="Aktywne"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 15l-6-6-6 6"/></svg></a>
+                                    <a href="{{url('/films_off_desc')}}" title="Wyłączone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></a>
+                                </span>
+                            </div>
+                        </th>
 
+                        <th scope="col" style="width: 15%">
+                            <div class="th-sort">
+                                Ocena
+                                <span class="th-sort__arrows">
+                                    <a href="{{url('/films_rating_asc')}}" title="Rosnąco"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 15l-6-6-6 6"/></svg></a>
+                                    <a href="{{url('/films_rating_desc')}}" title="Malejąco"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></a>
+                                </span>
+                            </div>
+                        </th>
 
-<div class="">
-  <div class="row">
-    <div class="col-12">
-		<table class="table table-image">
-      <thead class="thead-dark">
-		    <tr>
-          <th scope="col" style="width: 15%">
-          <a href="{{url('/admin_films')}}" class="table_link fas fa-arrow-up"></a>
-          #
-          <a href="{{url('films_id_asc')}}" class="table_link fas fa-arrow-down"></a>
-          </th></th>
+                        <th scope="col" style="width: 20%">Akcja</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach($films as $key => $film)
+                    <tr>
+                        <th scope="row">{{$films->firstItem() + $key}}</th>
+                        <td class="table_site"><b><a href="{{url('/edit_films', $film->id)}}">{{$film->name}}</a></b></td>
+                        <td>
+                            @if($film->activ == '0')
+                                <span class="status-pill status-pill--off">Wyłączony</span>
+                            @else
+                                <span class="status-pill status-pill--on">Aktywny</span>
+                            @endif
+                        </td>
+                        <td>{{$film->rating}}</td>
+                        <td>
+                            <a class="btn btn-danger" href="{{url('/delete_files_from_admin_search_films', $film->id)}}">Usuń</a>
+                        </td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
 
-            <th scope="col" style="width: 40%"><a href="{{url('/films_name_asc')}}" class="table_link fas fa-arrow-up"></a>
-            Nazwa
-            <a href="{{url('/films_name_desc')}}" class="table_link fas fa-arrow-down"></a>
-            </th>
+    @else
 
-            <th scope="col" style="width: 15%"><a href="{{url('/films_on_desc')}}" class="table_link fas fa-arrow-up"></a>
-            Status
-            <a href="{{url('/films_off_desc')}}" class="table_link fas fa-arrow-down"></a>
+        <div class="admin-empty-state">
+            <p>Brak filmów do wyświetlenia.</p>
+            <a href="{{url('/add_films')}}" class="btn btn-success">Dodaj nowy film</a>
+        </div>
 
-            <th scope="col" style="width: 15%"><a href="{{url('/films_rating_asc')}}" class="table_link fas fa-arrow-up"></a>
-            Ocena
-            <a href="{{url('/films_rating_desc')}}" class="table_link fas fa-arrow-down"></a>
-            </th>
-
-
-          <th scope="col" style="width: 20%">
-          Akcja       
-          </th>
-
-		    </tr>
-		  </thead>
-		  <tbody>
-        @foreach($films as $key => $film)
-          <tr>
-            <th scope="row">{{$films->firstItem() + $key}}</th>
-            <td class="table_site"><b><a href="{{url('/edit_films', $film->id)}}" >{{$film->name}}</a></b></td>
-            <td style="width: 3% !important;">
-            
-          
-            @if($film->activ =='0')         
-            <i class="far fa-times-circle"></i>
-            @else
-            <i class="far fa-check-circle"></i>
-            @endif
-            </td>
-            
-            <td>{{$film->rating}}</td>
- 
-            <td>
-              
-              <!-- <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#delete_{{$film->id}}">Usuń</button> -->
-              <a class="btn btn-danger" href="{{url('/delete_files_from_admin_search_films', $film->id)}}">Usuń</a>
-            </td>
-          </tr>
-        @endforeach
-		  </tbody>
-		</table>   
-    </div>
-  </div>
-</div>
-
-
-@else
-<div class="vertical-center">
-  <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
-      
-      <div class="alert alert-danger">
-          <ul>
-              Brak filmów do wyświetlenia.
-          </ul>
-
-          <ul>
-            <a href="{{url('/add_films')}}" ><button class="btn btn-success">Dodaj Nowy Film</button></a>
-            
-          </ul>
-
-      </div>
-
-  </div>
-</div>
-@endif
-
+    @endif
 
 </div>
 
 
-<!-- display fast delete modal
-
-@foreach($all_films as $film)
-  <div class="modal fade"  id="delete_{{$film->id}}" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+<div class="modal fade" id="delete_all" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content modtext" >
-        <div class="modal-body" style="font-size:17px; text-align: center">
-        Czy jesteś pewien że chcesz usunąć:
-        </br></br><b>{{$film->name}}?</b></br></br>
-        Film, zdjęcia oraz wszystkie elementy z nim powiązane zostaną permanentnie usunięte z dysku twardego oraz bazy danych.</br></br> <b>Pamiętaj że decyzji nie można cofnąć</b>
+        <div class="modal-content modtext">
+            <div class="modal-body" style="font-size:17px; text-align: center">
+                Czy jesteś pewien że chcesz usunąć WSZYSTKIE filmy?
+                </br></br>
+                Film, zdjęcia oraz wszystkie elementy z nimi powiązane zostaną permanentnie usunięte z dysku twardego oraz bazy danych.</br></br> <b>Pamiętaj że decyzji nie można cofnąć</b>
+            </div>
+            <div class="modal-footer">
+                <a class="btn btn-danger" href="{{url('/delete_all_films')}}">Usuń</a>
+                <button type="button" class="btn btn-success" data-dismiss="modal">Anuluj</button>
+            </div>
         </div>
-        <div class="modal-footer">
-          <a class="btn btn-danger" href="{{url('/delete_films', $film->id)}}">Usuń</a>
-          <button type="button" class="btn btn-success" data-dismiss="modal">Anuluj</button>
-        </div>
-      </div>
     </div>
-  </div>
-@endforeach
- -->
-
-
-<!------------------------------------------------------------------Modal-------------------------------------------------------------------->
-  <div class="modal fade"  id="delete_all" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content modtext" >
-        <div class="modal-body" style="font-size:17px; text-align: center">
-        Czy jeteś pewien że chcesz usunąć WSZYSTKIE filmy?
-        </br></br>
-        Film, zdjęcia oraz wszystkie elementy z nimi powiązane zostaną permanentnie usunięte z dysku twardego oraz bazy danych.</br></br> <b>Pamiętaj że decyzji nie można cofnąć</b>
-        </div>
-        <div class="modal-footer">
-          <a class="btn btn-danger" href="{{url('/delete_all_films')}}">Usuń</a>
-          <button type="button" class="btn btn-success" data-dismiss="modal">Anuluj</button>          
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-
+</div>
 
 @endsection
 

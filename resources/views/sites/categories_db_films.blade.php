@@ -6,7 +6,6 @@
 
 
 @section('content')
-<button onclick="topFunction()" id="myBtn">Top</button> 
 <div class="col-sm-12">
 
 @if( $count_tags >0 )
@@ -129,7 +128,7 @@
 
 </div>
 
-<div class="col-sm-12 row" id="result"></div>
+<div class="entity-grid" id="result"></div>
     
 @if(isset($stars_db_films))
 
@@ -171,49 +170,33 @@ $(document).ready(function(){
 
 
 
-<div class="col-sm-12 row">
+<div class="entity-grid">
   
 @foreach ($tags as $tag)
 
-    <div class="col-sm-3 col-m-2" style="padding-top: 20px;">
-      <div class="card " style="background-color: #F5F5F5; border: none !important;">
-        <div class="wrapper">
-            <a href="{{ url('/select_categories_stars_db_films', $tag->id) }}">
-                <img class="card-img-top img-fluid" src="{{URL::asset("$tag->thumbnail")}}">
+<?php
+    $count_films = DB::table('tags')
+    ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags.id')
+    ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
+    ->orderBy('name', 'ASC')
+    ->select('stars.*')
+    ->where('tags.id', $tag->id)
+    ->where('stars_tags.tag_db', 1)
+    ->distinct()
+    ->count();
+?>
 
-            <div class="film_number">
-                <i class="fas fa-video "></i> <?php 
-
-                $count_films = DB::table('tags')
-                ->join('stars_tags', 'stars_tags.tag_id', '=', 'tags.id')
-                ->join('stars', 'stars.id', '=', 'stars_tags.star_id')
-                ->orderBy('name', 'ASC')
-                ->select('stars.*')
-                ->where('tags.id', $tag->id)
-                ->where('stars_tags.tag_db', 1)
-                ->distinct()
-                ->count();
-
-                ?>&nbsp;&nbsp;{{$count_films}}
+    <a href="{{ url('/select_categories_stars_db_films', $tag->id) }}" class="entity-card">
+            <div class="entity-card__media">
+                <img src="{{URL::asset("$tag->thumbnail")}}" alt="{{ $tag->name }}" loading="lazy">
+                <div class="film_number">
+                    <i class="fas fa-video"></i>&nbsp;&nbsp;{{$count_films}}
+                </div>
             </div>
-        </div>
-
-        <div class=" card-hover">
-        <a href="{{ url('/select_categories_stars_db_films', $tag->id) }}">
-            <div class="card-body" style="border: 1px solid rgba(0, 0, 0, 0.125);">
-                
-                    {{$tag->name}}
-                
+            <div class="entity-card__body">
+                {{$tag->name}}
             </div>
-            </a>
-        </div>
-
         </a>
-      </div>
-    </div>
-   
-
-
 
 @endforeach
 
@@ -260,49 +243,33 @@ $(document).ready(function(){
 
 
 
-<div class="col-sm-12 row">
+<div class="entity-grid">
   
 @foreach ($tags as $tag)
 
-    <div class="col-sm-3 col-m-2" style="padding-top: 20px;">
-      <div class="card " style="background-color: #F5F5F5; border: none !important;">
-        <div class="wrapper">
-            <a href="{{ url('/select_categories_studios_db_films', $tag->id) }}">
-                <img class="card-img-top img-fluid" src="{{URL::asset("$tag->thumbnail")}}">
+<?php
+    $count_films = DB::table('tags')
+    ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags.id')
+    ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
+    ->orderBy('name', 'ASC')
+    ->select('studios.*')
+    ->where('tags.id', $tag->id)
+    ->where('studios_tags.tag_db', 1)
+    ->distinct()
+    ->count();
+?>
 
-            <div class="film_number">
-                <i class="fas fa-video "></i> <?php 
-
-                $count_films = DB::table('tags')
-                ->join('studios_tags', 'studios_tags.tag_id', '=', 'tags.id')
-                ->join('studios', 'studios.id', '=', 'studios_tags.studio_id')
-                ->orderBy('name', 'ASC')
-                ->select('studios.*')
-                ->where('tags.id', $tag->id)
-                ->where('studios_tags.tag_db', 1)
-                ->distinct()
-                ->count();
-
-                ?>&nbsp;&nbsp;{{$count_films}}
+    <a href="{{ url('/select_categories_studios_db_films', $tag->id) }}" class="entity-card">
+            <div class="entity-card__media">
+                <img src="{{URL::asset("$tag->thumbnail")}}" alt="{{ $tag->name }}" loading="lazy">
+                <div class="film_number">
+                    <i class="fas fa-video"></i>&nbsp;&nbsp;{{$count_films}}
+                </div>
             </div>
-        </div>
-
-        <div class=" card-hover">
-        <a href="{{ url('/select_categories_studios_db_films', $tag->id) }}">
-            <div class="card-body" style="border: 1px solid rgba(0, 0, 0, 0.125);">
-                
-                    {{$tag->name}}
-                
+            <div class="entity-card__body">
+                {{$tag->name}}
             </div>
-            </a>
-        </div>
-
         </a>
-      </div>
-    </div>
-   
-
-
 
 @endforeach
 

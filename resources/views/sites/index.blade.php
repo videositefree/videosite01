@@ -6,7 +6,6 @@
 
 
 @section('content')
-<button onclick="topFunction()" id="myBtn">Top</button> 
 
     @if( $count_films >0 )
         
@@ -374,84 +373,80 @@
 
     @endif
 
+<?php $heroFilm = ($films->currentPage() == 1 && $films->count() > 0) ? $films->getCollection()->random() : null; ?>
+
+@if($heroFilm)
+<section class="hero">
+    <div class="hero__bg" style="background-image: url('{{URL::asset("$heroFilm->thumbnail")}}');"></div>
+    <div class="hero__scrim"></div>
+    <div class="hero__content">
+        <span class="hero__eyebrow">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            Polecane
+        </span>
+        <h1 class="hero__title">{{ $heroFilm->name }}</h1>
+        <div class="hero__meta">
+            <span><i class="fa fa-clock-o"></i> @php echo gmdate("H:i:s", $heroFilm->duration); @endphp</span>
+            <span><i class="fas fa-star"></i> {{ $heroFilm->rating }}</span>
+        </div>
+        <a href="{{ url('/watch', $heroFilm->id) }}" class="hero__cta">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            Oglądaj teraz
+        </a>
+    </div>
+</section>
+@endif
+
+<div class="film-grid">
 @foreach ($films as $film)
 
+<a href="{{ url('/watch', $film->id) }}" class="film-card" data-preview="true" aria-label="{{ $film->name }}">
 
+    <div class="video-wrapper">
 
+        <div class="poster-still" style="background-image: url('{{URL::asset("$film->thumbnail")}}');"></div>
 
+        <video
+            muted
+            loop
+            playsinline
+            preload="none"
+            poster="{{URL::asset("$film->thumbnail")}}"
+            tabindex="-1"
+            aria-hidden="true"
+        >
+            <source src="{{URL::asset("$film->short")}}" type="video/mp4" />
+        </video>
 
+        <div class="play-hint" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.45)" stroke="rgba(242,241,237,0.85)" stroke-width="1"/>
+                <path d="M10 8.5L16 12L10 15.5V8.5Z" fill="#F2F1ED"/>
+            </svg>
+        </div>
 
+        <div class="sweep"></div>
 
+        <div class="film_rating">
+            <i class="fa fa-star" aria-hidden="true"></i> {{$film->rating}}
+        </div>
 
+        <div class="film_duration">
+            <i class="fa fa-clock-o"></i> &nbsp;@php echo gmdate("H:i:s", $film->duration); @endphp
+        </div>
 
+    </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="col-sm-3">
-    <div class=" m-1">
-        <div class="card video-wrapper" style="background-color: #F5F5F5;">
-
-            <!-- alternative when use this video player please delete  /* PLAYER VIDEO.JS */ in css and app.blade - (player "video.js" - script), (player "video.js" - css)  -->
-            <!-- <video className="card-img-top bg-light mb-3 img-responsive video-responsive" src="{{URL::asset("$film->short")}}" poster="{{URL::asset("$film->thumbnail")}}" loop  preload="metadata" muted></video> -->
-           
-            <video
-                id="my-video"
-                class="video-js card-img-top"
-                controls
-                loop
-                preload="none"
-                muted
-                style="width: 100%; height:240px;"
-                poster="{{URL::asset("$film->thumbnail")}}"
-                data-setup="{}"
-            >
-                <source src="{{URL::asset("$film->short")}}" type="video/mp4" />
-
-                <p class="vjs-no-js">
-                    To view this video please enable JavaScript, and consider upgrading to a
-                    web browser that
-                    <a href="https://videojs.com/html5-video-support/" target="_blank"
-                        >supports HTML5 video</a
-                    >
-                </p>
-
-            </video>
-                
-            <div class="film_duration">
-                <i class="fa fa-clock-o"></i> &nbsp;@php echo gmdate("H:i:s", $film->duration); @endphp
-            </div>
-
-                <div class="film_rating">
-                    <i class="far fa-star"></i> &nbsp;{{$film->rating}} 
-                </div>
-
-                <div class="card-hover" style="text-align: center; " >
-                        
-                            <a href="{{ url('/watch', $film->id) }}">
-                        <div style=" max-height: 100px; min-height: 80px; padding-top: 30px; font-size: 13px;" class="text_video_name">
-                        {{$film->name}}  
-                        </div> 
-                        </a> 
-                </div> 
+    <div class="card-hover" style="text-align: left;">
+        <div class="text_video_name">
+            {{$film->name}}
         </div>
     </div>
-</div>
+
+</a>
 
 @endforeach
+</div>
 
 <div class="col-sm-12">
 <div style="margin-top: 80px; "></div>

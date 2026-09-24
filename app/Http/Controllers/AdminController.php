@@ -141,115 +141,54 @@ class AdminController extends Controller
 
 
 
-            $directory = "../../filmy/";
-            if (!file_exists($directory)) {
-                mkdir($directory, 0777, true);
-            }
-            if (file_exists($directory)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu filmy<br> 
-                Spróbuj dodać folder ręcznie następnie spróbuj ponownie przejść do panelu administratora');
-            }
+            $requiredDirectories = [
+                '../../filmy/' => 'Niestety nie możemy automatycznie utworzyć folderu filmy<br> 
+                Spróbuj dodać folder ręcznie następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory1 = "../../filmy/short";
-            if (!file_exists($directory1)) {
-                mkdir($directory1, 0777, true);
-            }if (file_exists($directory1)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu short!</br> 
-                Spróbuj dodać podfolder short ręcznie do folderu filmy następnie spróbuj ponownie przejść do panelu administratora');
-            }
+                '../../filmy/short' => 'Niestety nie możemy automatycznie utworzyć folderu short!</br> 
+                Spróbuj dodać podfolder short ręcznie do folderu filmy następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory2 = "../../filmy/conversion";
-            if (!file_exists($directory2)) {
-                mkdir($directory2, 0777, true);
-            }if (file_exists($directory2)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu conversion!</br>
-                Spróbuj dodać podfolder conversion ręcznie do folderu filmy następnie spróbuj ponownie przejść do panelu administratora');
-            }
+                '../../filmy/conversion' => 'Niestety nie możemy automatycznie utworzyć folderu conversion!</br>
+                Spróbuj dodać podfolder conversion ręcznie do folderu filmy następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory3 = "../../filmy/conversion/delete";
-            if (!file_exists($directory3)) {
-                mkdir($directory3, 0777, true);
-            }if (file_exists($directory3)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu delete!</br>
-                Spróbuj dodać podfolder delete ręcznie do folderu filmy/conversion następnie spróbuj ponownie przejść do panelu administratora');
-            }
+                '../../filmy/conversion/delete' => 'Niestety nie możemy automatycznie utworzyć folderu delete!</br>
+                Spróbuj dodać podfolder delete ręcznie do folderu filmy/conversion następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory4 = "../../filmy/cut";
-            if (!file_exists($directory4)) {
-                mkdir($directory4, 0777, true);
-            }if (file_exists($directory4)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu cut!</br>
-                Spróbuj dodać podfolder cut ręcznie do folderu filmy następnie spróbuj ponownie przejść do panelu administratora');
-            }
+                '../../filmy/cut' => 'Niestety nie możemy automatycznie utworzyć folderu cut!</br>
+                Spróbuj dodać podfolder cut ręcznie do folderu filmy następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory5 = "../../filmy/cut/delete";
-            if (!file_exists($directory5)) {
-                mkdir($directory5, 0777, true);
-            }if (file_exists($directory5)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu delete!</br>
-                Spróbuj dodać podfolder delete ręcznie do folderu filmy/cut następnie spróbuj ponownie przejść do panelu administratora');
-            }
-            
+                '../../filmy/cut/delete' => 'Niestety nie możemy automatycznie utworzyć folderu delete!</br>
+                Spróbuj dodać podfolder delete ręcznie do folderu filmy/cut następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory6 = "../../filmy/thumbnail";
-            if (!file_exists($directory6)) {
-                mkdir($directory6, 0777, true);
-            }if (file_exists($directory6)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu thumbnail!</br>
-                Spróbuj dodać podfolder thumbnail ręcznie do folderu filmy następnie spróbuj ponownie przejść do panelu administratora');
-            }
+                '../../filmy/thumbnail' => 'Niestety nie możemy automatycznie utworzyć folderu thumbnail!</br>
+                Spróbuj dodać podfolder thumbnail ręcznie do folderu filmy następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory7 = "../../filmy/thumbnail/stars";
-            if (!file_exists($directory7)) {
-                mkdir($directory7, 0777, true);
-            }if (file_exists($directory7)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu stars!</br>
-                Spróbuj dodać podfolder stars ręcznie do folderu filmy/thumbnail następnie spróbuj ponownie przejść do panelu administratora');
-            }
+                '../../filmy/thumbnail/stars' => 'Niestety nie możemy automatycznie utworzyć folderu stars!</br>
+                Spróbuj dodać podfolder stars ręcznie do folderu filmy/thumbnail następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory8 = "../../filmy/thumbnail/studios";
-            if (!file_exists($directory8)) {
-                mkdir($directory8, 0777, true);
-            }if (file_exists($directory8)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu studios!</br>
-                Spróbuj dodać podfolder studios ręcznie do folderu filmy/thumbnail następnie spróbuj ponownie przejść do panelu administratora');
-            }
+                '../../filmy/thumbnail/studios' => 'Niestety nie możemy automatycznie utworzyć folderu studios!</br>
+                Spróbuj dodać podfolder studios ręcznie do folderu filmy/thumbnail następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory9 = "../../filmy/thumbnail/tags";
-            if (!file_exists($directory9)) {
-                mkdir($directory9, 0777, true);
-            }if (file_exists($directory9)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu tags!</br>
-                Spróbuj dodać podfolder tags ręcznie do folderu filmy/thumbnail następnie spróbuj ponownie przejść do panelu administratora');
-               
-            }
+                '../../filmy/thumbnail/tags' => 'Niestety nie możemy automatycznie utworzyć folderu tags!</br>
+                Spróbuj dodać podfolder tags ręcznie do folderu filmy/thumbnail następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory10 = "../../filmy/join";
-            if (!file_exists($directory4)) {
-                mkdir($directory4, 0777, true);
-            }if (file_exists($directory4)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu join!</br>
-                Spróbuj dodać podfolder join ręcznie do folderu filmy następnie spróbuj ponownie przejść do panelu administratora');
-            }
+                // Te dwa niżej (join, join/delete) w oryginale sprawdzały przez pomyłkę
+                // zmienne folderów "cut" ($directory4/$directory5) zamiast własnych ścieżek —
+                // więc nigdy nie były faktycznie weryfikowane ani tworzone.
+                '../../filmy/join' => 'Niestety nie możemy automatycznie utworzyć folderu join!</br>
+                Spróbuj dodać podfolder join ręcznie do folderu filmy następnie spróbuj ponownie przejść do panelu administratora',
 
-            $directory11 = "../../filmy/join/delete";
-            if (!file_exists($directory5)) {
-                mkdir($directory5, 0777, true);
-            }if (file_exists($directory5)) {}
-            else{
-                return redirect()->back()->with('errors', 'Niestety nie możemy automatycznie utworzyć folderu delete!</br>
-                Spróbuj dodać podfolder delete ręcznie do folderu filmy/join następnie spróbuj ponownie przejść do panelu administratora');
+                '../../filmy/join/delete' => 'Niestety nie możemy automatycznie utworzyć folderu delete!</br>
+                Spróbuj dodać podfolder delete ręcznie do folderu filmy/join następnie spróbuj ponownie przejść do panelu administratora',
+            ];
+
+            foreach ($requiredDirectories as $path => $errorMessage) {
+                if (!file_exists($path)) {
+                    mkdir($path, 0777, true);
+                }
+                if (!file_exists($path)) {
+                    return redirect()->back()->with('errors', $errorMessage);
+                }
             }
 
            

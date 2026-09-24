@@ -124,95 +124,47 @@ class DatabaseController extends Controller
 
         // create db and migrations -> manually_create_db blade
         Artisan::call('db:create');
-        
 
-        $directory = "../../filmy/";
-        if (!file_exists($directory)) {
-            mkdir($directory, 0777, true);
-        }
-        if (file_exists($directory)) {}
-        else{
-            return redirect()->back()->with('msg_errors', 'Niestety nie możemy utworzyć folderu filmy!');
-        }
+        $requiredDirectories = [
+            '../../filmy/' => 'Niestety nie możemy utworzyć folderu filmy!',
 
-        $directory1 = "../../filmy/short";
-        if (!file_exists($directory1)) {
-            mkdir($directory1, 0777, true);
-        }if (file_exists($directory1)) {}
-        else{
-            return redirect()->back()->with('msg_errors', 'Niestety nie możemy utworzyć folderu filmy!</br>
-            Niestety nie możemy utworzyć folderu filmy/short!</br>');
-        }
+            '../../filmy/short' => 'Niestety nie możemy utworzyć folderu filmy!</br>
+            Niestety nie możemy utworzyć folderu filmy/short!</br>',
 
-        $directory2 = "../../filmy/conversion";
-        if (!file_exists($directory2)) {
-            mkdir($directory2, 0777, true);
-        }if (file_exists($directory2)) {}
-        else{
-            return redirect()->back()->with('msg_errors', 'Niestety nie możemy utworzyć folderu filmy!</br>
-            Niestety nie możemy utworzyć folderu filmy/conversion!</br>');
-        }
+            '../../filmy/conversion' => 'Niestety nie możemy utworzyć folderu filmy!</br>
+            Niestety nie możemy utworzyć folderu filmy/conversion!</br>',
 
-        $directory3 = "../../filmy/conversion/cut_delete";
-        if (!file_exists($directory3)) {
-            mkdir($directory3, 0777, true);
-        }if (file_exists($directory3)) {}
-        else{
-            return redirect()->back()->with('msg_errors', 'Niestety nie możemy utworzyć folderu filmy!</br>
+            '../../filmy/conversion/cut_delete' => 'Niestety nie możemy utworzyć folderu filmy!</br>
             Niestety nie możemy utworzyć folderu filmy/conversion!</br>
-            Niestety nie możemy utworzyć folderu filmy/conversion/cut_delete!</br>');
-        }
-        
+            Niestety nie możemy utworzyć folderu filmy/conversion/cut_delete!</br>',
 
-        $directory4 = "../../filmy/thumbnail";
-        if (!file_exists($directory4)) {
-            mkdir($directory4, 0777, true);
-        }if (file_exists($directory4)) {}
-        else{
-            return redirect()->back()->with('msg_errors', 'Niestety nie możemy utworzyć folderu filmy!</br>
-            Niestety nie możemy utworzyć folderu filmy/thumbnail!</br>');
-        }
+            '../../filmy/thumbnail' => 'Niestety nie możemy utworzyć folderu filmy!</br>
+            Niestety nie możemy utworzyć folderu filmy/thumbnail!</br>',
 
-        $directory5 = "../../filmy/thumbnail/stars";
-        if (!file_exists($directory5)) {
-            mkdir($directory5, 0777, true);
-        }if (file_exists($directory5)) {}
-        else{
-            return redirect()->back()->with('msg_errors', 'Niestety nie możemy utworzyć folderu filmy!</br>
+            '../../filmy/thumbnail/stars' => 'Niestety nie możemy utworzyć folderu filmy!</br>
             Niestety nie możemy utworzyć folderu filmy/thumbnail!</br>
-            Niestety nie możemy utworzyć folderu filmy/thumbnail/stars!</br>');
-        }
+            Niestety nie możemy utworzyć folderu filmy/thumbnail/stars!</br>',
 
-        $directory6 = "../../filmy/thumbnail/studios";
-        if (!file_exists($directory6)) {
-            mkdir($directory6, 0777, true);
-        }if (file_exists($directory6)) {}
-        else{
-            return redirect()->back()->with('msg_errors', 'Niestety nie możemy utworzyć folderu filmy!</br>
+            '../../filmy/thumbnail/studios' => 'Niestety nie możemy utworzyć folderu filmy!</br>
             Niestety nie możemy utworzyć folderu filmy/thumbnail</br>!
-            Niestety nie możemy utworzyć folderu filmy/thumbnail/studios!</br>');
-        }
+            Niestety nie możemy utworzyć folderu filmy/thumbnail/studios!</br>',
 
-        $directory7 = "../../filmy/thumbnail/tags";
-        if (!file_exists($directory7)) {
-            mkdir($directory7, 0777, true);
-        }if (file_exists($directory)) {}
-        else{
-            return redirect()->back()->with('msg_errors', 'Niestety nie możemy utworzyć folderu filmy!</br>
+            '../../filmy/thumbnail/tags' => 'Niestety nie możemy utworzyć folderu filmy!</br>
             Niestety nie możemy utworzyć folderu filmy/thumbnail!</br>
-            Niestety nie możemy utworzyć folderu filmy/thumbnail/tags!</br>');
-           
-        }
+            Niestety nie możemy utworzyć folderu filmy/thumbnail/tags!</br>',
 
-        $directory8 = "../../filmy/cut";
-        if (!file_exists($directory8)) {
-            mkdir($directory8, 0777, true);
-        }if (file_exists($directory8)) {}
-        else{
-            return redirect()->back()->with('msg_errors', 'Niestety nie możemy utworzyć folderu filmy!</br>
-            Niestety nie możemy utworzyć folderu filmy/cut!</br>');
+            '../../filmy/cut' => 'Niestety nie możemy utworzyć folderu filmy!</br>
+            Niestety nie możemy utworzyć folderu filmy/cut!</br>',
+        ];
+
+        foreach ($requiredDirectories as $path => $errorMessage) {
+            if (!file_exists($path)) {
+                mkdir($path, 0777, true);
+            }
+            if (!file_exists($path)) {
+                return redirect()->back()->with('msg_errors', $errorMessage);
+            }
         }
-        
 
         return redirect(url('/migrations_db'));
     

@@ -1,205 +1,231 @@
 <!doctype html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
-        
+
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-
-        <!-- CSRF Token -->
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'VideoSite') }}</title>
+        <title>@yield('title', config('app.name', 'VideoSite'))</title>
 
-        <!-- Scripts -->
-        <script src="{{ asset('js/app.js') }}" ></script>
-        <script src="{{ asset('js/app.blade.js') }}" defer></script> <!-- stars system -->
-        <script src="{{ asset('js/jquery-ui.js') }}" defer></script> <!-- stars system -->
-        <script src="{{ asset('js/jquery.form.js') }}" defer></script> <!-- stars system -->
-        <script src="{{ asset('js/video.min.js') }}" defer></script> <!-- player "video.js" - script -->
+        <script src="{{ asset('js/app.js') }}"></script>
+        <script src="{{ asset('js/app.blade.js') }}?v={{ @filemtime(public_path('js/app.blade.js')) }}" defer></script>
+        <script src="{{ asset('js/jquery-ui.js') }}" defer></script>
+        <script src="{{ asset('js/jquery.form.js') }}" defer></script>
+        <script src="{{ asset('js/video.min.js') }}" defer></script>
+        <script src="{{ asset('js/marquee-preview.js') }}?v={{ @filemtime(public_path('js/marquee-preview.js')) }}" defer></script>
 
-
-    
-    <link href="{{ asset('css/jquery-ui.css') }}" rel="stylesheet"><!------- style for autocomplete ---------->
-
-
-        <!-- Fonts -->
+        <link href="{{ asset('css/jquery-ui.css') }}" rel="stylesheet">
         <link href="{{ asset('css/fontawesome/css/all.css') }}" rel="stylesheet">
 
-        <!-- Styles -->
         <link href="{{ asset('css/app.css') }}" rel="stylesheet">
-       
-        
-        <link href="{{ asset('css/app.blade.css') }}" rel="stylesheet">
-        <link href="{{ asset('css/star.css') }}" rel="stylesheet">
-        <link href="{{ asset('css/video-js.css') }}" rel="stylesheet"> <!-- player "video.js" - css -->
+        <link href="{{ asset('css/app.blade.css') }}?v={{ @filemtime(public_path('css/app.blade.css')) }}" rel="stylesheet"><!-- Marquee theme -->
+        <link href="{{ asset('css/star.css') }}?v={{ @filemtime(public_path('css/star.css')) }}" rel="stylesheet">
+        <link href="{{ asset('css/video-js.css') }}" rel="stylesheet">
 
-        <!-- Delete error favicon.ico -->
         <link rel="shortcut icon" href="#">
 
     </head>
 
-    <body class="body" >        
-    
-        <nav class="navbar navbar-expand-xl sticky-top navbar-dark">
-            <div class="site-name" >Video Site!</div>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                <ul class="navbar-nav mr-auto bg-dark">
-            
-            <li><a class="fas fa-home" href="{{ url('') }}"> Strona Główna</a></li>
+    <body class="body">
 
-            <li class="dropdown open" style="padding-left: 5px;">
-                    <a href="#" class="dropdown-toggle fas fa-tags" data-toggle="dropdown"> Tagi</a>
-                    <ul class="dropdown-menu dropdown-login-menu" role="menu">
+        <a href="#mq-content" class="skip-link">Przejdź do treści</a>
 
-                    <a class="dropdown-item" href="{{ url('/tags') }}" id="drop_down_id"> Tagi Filmów </a>
-                    <a class="dropdown-item" href="{{ url('/tags_stars') }}" id="drop_down_id"> Tagi Gwiazd </a>
-                    <a class="dropdown-item" href="{{ url('/tags_studios') }}" id="drop_down_id"> Tagi Wytwórni</a>
-            
-                    </ul>
-                </li>
-            
-            <li><a class="fas fa-star" href="{{ url('/stars') }}"> Gwiazdy</a></li>
-            <li><a class="fas fa-folder" href="{{ url('/studios') }}"> Wytwórnie</a></li>
-        
-                @guest
-                @else
-                <li><a class="fas fa-upload" href="{{ url('/add_films') }}"> Prześlij</a></li>
-                @endguest
+        <!-- ============ NAVBAR ============ -->
+        <header class="marquee-nav">
+            <div class="marquee-nav__bar">
 
+                <button type="button" class="hamburger-btn" id="mq-hamburger" aria-label="Otwórz menu" aria-expanded="false" aria-controls="mq-drawer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+
+                <a href="{{ url('') }}" class="marquee-nav__brand">VideoSite</a>
+
+                <ul class="marquee-nav__links">
+                    <li class="{{ request()->is('/') ? 'active' : '' }}"><a href="{{ url('') }}">Strona Główna</a></li>
+
+                    <li class="nav-dd {{ request()->is('tags*') ? 'active' : '' }}">
+                        <a href="{{ url('/tags') }}" aria-haspopup="true">
+                            Tagi
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                        </a>
+                        <div class="nav-dd__panel">
+                            <div class="nav-dd__panel-inner">
+                                <a href="{{ url('/tags') }}">Tagi Filmów</a>
+                                <a href="{{ url('/tags_stars') }}">Tagi Gwiazd</a>
+                                <a href="{{ url('/tags_studios') }}">Tagi Wytwórni</a>
+                            </div>
+                        </div>
+                    </li>
+
+                    <li class="{{ request()->is('stars*') ? 'active' : '' }}"><a href="{{ url('/stars') }}">Gwiazdy</a></li>
+                    <li class="{{ request()->is('studios*') ? 'active' : '' }}"><a href="{{ url('/studios') }}">Wytwórnie</a></li>
+
+                    @guest
+                    @else
+                    <li class="{{ request()->is('add_films*') ? 'active' : '' }}"><a href="{{ url('/add_films') }}">Prześlij</a></li>
+                    @endguest
                 </ul>
-            <ul class="navbar-nav navbar-right bg-dark">
 
-            <form action="{{ url('/search') }}" method="GET" enctype="multipart/form-data">
-                <div class="col-sm-12">            
-                    <div class="input-group" style="padding-top: 18px; margin-bottom:10px">
-                    <input type="text" name="search" class="form-control" placeholder="Wyszukaj..." >
-                    <div class="input-group-append">
-                        <button class="btn btn-secondary" type="submit">
-                        <i class="fa fa-search"></i>
+                <div class="marquee-nav__spacer"></div>
+
+                <div class="marquee-nav__actions">
+
+                    <button type="button" class="nav-icon-btn" data-search-toggle aria-label="Szukaj">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </button>
+
+                    <div class="nav-icon-btn desktop-only" style="width:auto;">
+                        <div class="custom-control custom-switch mode-switch" style="display:flex; align-items:center;">
+                            <input type="checkbox" class="custom-control-input" id="darkSwitch">
+                            <label class="custom-control-label" for="darkSwitch" style="margin-bottom:0;">Dark</label>
+                        </div>
+                    </div>
+
+                    <div class="nav-dd desktop-only">
+                        <button type="button" class="nav-icon-btn" aria-haspopup="true" aria-label="Konto">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
                         </button>
-            
+                        <div class="nav-dd__panel">
+                            <div class="nav-dd__panel-inner">
+                                @guest
+                                    <a href="{{ route('login') }}">{{ __('Zaloguj się') }}</a>
+                                    @if (Route::has('register'))
+                                        <a href="{{ route('register') }}">{{ __('Rejestracja') }}</a>
+                                    @endif
+                                @else
+                                    <a href="{{ url('/admin_index') }}">Zarządzaj</a>
+                                    <a href="{{ route('logout') }}"
+                                       onclick="event.preventDefault(); document.getElementById('logout-form').submit();">{{ __('Wyloguj') }}</a>
+                                    <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
+                                @endguest
+                            </div>
+                        </div>
                     </div>
-                    </div>
-            
+
                 </div>
+            </div>
+        </header>
+
+        <!-- ============ SEARCH OVERLAY ============ -->
+        <div class="search-overlay" id="mq-search-overlay">
+            <form action="{{ url('/search') }}" method="GET">
+                <input type="text" name="search" id="mq-search-input" placeholder="Szukaj filmów, gwiazd, tagów…" autocomplete="off">
+                <button type="submit">Szukaj</button>
             </form>
-                <li class="dropdown open" style="padding-left: 5px;">
-                    <a href="#" class="dropdown-toggle fas fa-user" data-toggle="dropdown"></a>
-                    <ul class="dropdown-menu dropdown-login-menu" role="menu">
-                        @guest
-                                <a class="dropdown-item" href="{{ route('login') }}" id="drop_down_id">{{ __('Zaloguj się') }}</a>
-                                
-                        @if (Route::has('register'))
-                                    
-                            <a class="dropdown-item" href="{{ route('register') }}" id="drop_down_id">{{ __('Rejestracja') }}</a>
-                                    
-                        @endif
-                        @else
+        </div>
 
-                            <a class="dropdown-item" href="{{ url('/admin_index') }}" id="drop_down_id">
-                                Zarządzaj <span class="caret"></span>
-                            </a>
-
-                            <a class="dropdown-item" href="{{ route('logout') }}"
-                                onclick="event.preventDefault();
-                                document.getElementById('logout-form').submit();" id="drop_down_id">
-                                {{ __('Wyloguj') }}
-                            </a>
-
-                            <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;" id="drop_down_id">
-                                @csrf
-                            </form>
-
-                        @endguest
-            
-                    </ul>
-                </li>
-                <li>
-                    <div id="dark-switch" class="custom-control custom-switch tw mode-switch" style="padding-top: 27px; padding-left: 45px;">
-                    <input type="checkbox" class="custom-control-input"  id="darkSwitch">
-                    <label class="custom-control-label" for="darkSwitch" style="color: white;">Dark Mode</label>
-                    </div>
-                </li>
-                </div>
-            </ul>
-        </nav>
-
-
-        <!-- Extra search div -->
-
-            <div class="search form-inline tw ">
-            
-                @yield('search')
-                    
-                <div class="search form-inline tw col-sm-12">
-                    @yield('search_extra')    
-                </div>
-                
+        <!-- ============ DRAWER (mobile nav) ============ -->
+        <div class="drawer-backdrop" id="mq-drawer-backdrop"></div>
+        <nav class="drawer" id="mq-drawer" aria-hidden="true" aria-label="Menu główne">
+            <div class="drawer__head">
+                <span class="marquee-nav__brand" style="font-size:22px;">VideoSite</span>
+                <button type="button" class="drawer__close" id="mq-drawer-close" aria-label="Zamknij menu">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
             </div>
 
-        <!-- END -->
+            <ul class="drawer__nav">
+                <li class="{{ request()->is('/') ? 'active' : '' }}"><a href="{{ url('') }}">Strona Główna</a></li>
 
-        
-        <div class="container content col-xl-10 " style="padding-top: 20px;">
-        
-            <div class="col-sm-3 col-lg-3"></div>
-
-            <!-- Filtr database -->
-                <div class="d-flex justify-content-end"> @yield('filtr_text')</div>
-                <div class=" d-flex justify-content-center" >@yield('filtr_link')</div>
-                <div class=" d-flex justify-content-center" >@yield('filtr2_link')</div>
-            <!-- END -->
-
-            
-            <!-- Return Mesage --> 
-                <div class="col-sm-12 text-center" style="padding-top: 15px;">
-
-
-                @if ($message = Session::get('success'))
-                    <div class="alert alert-success alert-block">
-                        <button type="button" class="close" data-dismiss="alert">×</button>
-                        <strong>{{ $message }}</strong>
+                <li class="drawer__accordion {{ request()->is('tags*') ? 'is-open' : '' }}">
+                    <button type="button" class="drawer__accordion-btn" aria-expanded="false">
+                        Tagi
+                        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <div class="drawer__accordion-panel">
+                        <a href="{{ url('/tags') }}">Tagi Filmów</a>
+                        <a href="{{ url('/tags_stars') }}">Tagi Gwiazd</a>
+                        <a href="{{ url('/tags_studios') }}">Tagi Wytwórni</a>
                     </div>
+                </li>
+
+                <li class="{{ request()->is('stars*') ? 'active' : '' }}"><a href="{{ url('/stars') }}">Gwiazdy</a></li>
+                <li class="{{ request()->is('studios*') ? 'active' : '' }}"><a href="{{ url('/studios') }}">Wytwórnie</a></li>
+
+                @guest
+                @else
+                <li><a href="{{ url('/add_films') }}">Prześlij</a></li>
+                @endguest
+            </ul>
+
+            <div class="drawer__foot">
+                <div class="custom-control custom-switch mode-switch">
+                    <input type="checkbox" class="custom-control-input" id="darkSwitchMobile">
+                    <label class="custom-control-label" for="darkSwitchMobile">Tryb ciemny</label>
+                </div>
+
+                @guest
+                    <a href="{{ route('login') }}" class="btn btn-success" style="text-align:center;">{{ __('Zaloguj się') }}</a>
+                    @if (Route::has('register'))
+                        <a href="{{ route('register') }}" class="btn btn-info" style="text-align:center;">{{ __('Rejestracja') }}</a>
+                    @endif
+                @else
+                    <a href="{{ url('/admin_index') }}" class="btn btn-info" style="text-align:center;">Zarządzaj</a>
+                    <a href="#" class="btn btn-delete" style="text-align:center;"
+                       onclick="event.preventDefault(); document.getElementById('logout-form-m').submit();">{{ __('Wyloguj') }}</a>
+                    <form id="logout-form-m" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
+                @endguest
+            </div>
+        </nav>
+
+        <!-- ============ FILTER PANEL (yield used by search.blade.php etc.) ============ -->
+        @if ($__env->hasSection('search') || $__env->hasSection('search_extra'))
+        <div class="search-filters-panel">
+            <div class="wrap">
+                @yield('search')
+                <div class="search-filters-panel__extra">@yield('search_extra')</div>
+            </div>
+        </div>
+        @endif
+
+        <!-- ============ CONTENT ============ -->
+        <main id="mq-content" class="content">
+            <div class="wrap">
+
+                <div class="d-flex justify-content-end">@yield('filtr_text')</div>
+                <div class="d-flex justify-content-center">@yield('filtr_link')</div>
+                <div class="d-flex justify-content-center">@yield('filtr2_link')</div>
+
+                <div class="col-sm-12 text-center" style="padding-top: 0;">
+                    @if ($message = Session::get('success'))
+                        <div class="alert alert-success alert-block">
+                            <button type="button" class="close" data-dismiss="alert">×</button>
+                            <strong>{{ $message }}</strong>
+                        </div>
+                    @endif
+                    @if ($message = Session::get('error'))
+                        <div class="alert alert-danger alert-block">
+                            <button type="button" class="close" data-dismiss="alert">×</button>
+                            <strong>{{ $message }}</strong>
+                        </div>
+                    @endif
+                </div>
+
+                @if ($__env->hasSection('extra_content'))
+                <div class="extra-toolbar">@yield('extra_content')</div>
                 @endif
 
-                @if ($message = Session::get('error'))
-                    <div class="alert alert-danger alert-block">
-                        <button type="button" class="close" data-dismiss="alert">×</button>
-                        <strong>{{ $message }}</strong>
-                    </div>
-                @endif
+                @yield('extra_content2')
 
-                </div>
-            <!-- END -->
+                @yield('content')
 
-            <!-- Display all content -->
-                <div class="row ">
-                    
-                    <!-- filtr database in table -->
-                        <div class="col-sm-4" style="padding-bottom: 5px;"> @yield('extra_content')</div>
-                        <div style="width: 100%; padding-bottom: 5px;">@yield('extra_content2')</div>
-                    <!-- END -->
+            </div>
+        </main>
 
-                    @yield('content')
-                    
-
-                </div>
-            <!-- END -->
+        <div class="page">
+            <div class="wrap">
+                @yield('pagi')
+            </div>
         </div>
 
+        <footer class="marquee-footer">
+            <strong>VideoSite</strong> — &copy; {{ date('Y') }}
+        </footer>
 
-        <div class="page d-flex justify-content-center col-sm-11">
-            
-            @yield('pagi')
-
-        </div>
-    
-
-
-
+        <button onclick="topFunction()" id="myBtn" title="Do góry" aria-label="Przewiń do góry">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="19" x2="12" y2="5"/><path d="M5 12l7-7 7 7"/></svg>
+        </button>
 
     </body>
 </html>

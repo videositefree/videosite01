@@ -76,29 +76,9 @@ $(document).ready(function() {
   
 });
 
-// dark mode switch
-const toggleSwitch = document.querySelector('.mode-switch input[type="checkbox"]');
-const currentTheme = localStorage.getItem('theme');
-
-if (currentTheme) {
-    document.documentElement.setAttribute('data-theme', currentTheme);
-  
-    if (currentTheme === 'dark') {
-        toggleSwitch.checked = true;
-    }
-}
-
-function switchTheme(e) {
-    if (e.target.checked) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        localStorage.setItem('theme', 'dark');
-    }
-    else {        document.documentElement.setAttribute('data-theme', 'light');
-          localStorage.setItem('theme', 'light');
-    }    
-}
-
-toggleSwitch.addEventListener('change', switchTheme, false);
+// dark mode switch — przeniesione do marquee-preview.js (jeden spójny system
+// dla strony publicznej i panelu admina, obsługuje oba przełączniki
+// desktop/mobile i localStorage bez konfliktu o ten sam klucz)
 
 
 // tooltips 
@@ -119,30 +99,8 @@ $('video', this).get(0).load();
 
 
 
-//UP BUTTON
-if(document.getElementById('myBtn')){
-var mybutton = document.getElementById("myBtn");
-
-window.onscroll = function() {scrollFunction()};
-
-function scrollFunction() {
-  if (document.body.scrollTop > 450 || document.documentElement.scrollTop > 450) {
-    mybutton.style.display = "block";
-  } else {
-    mybutton.style.display = "none";
-  }
-}
-
-function topFunction() {
-  document.body.scrollTop = 0;
-  document.documentElement.scrollTop = 0;
-}
-
-$('.toTop').on('click', function(event) {
-  event.preventDefault();
-  $('html, body').animate({ scrollTop: 0 }, 'slow');         
-});
-}
+// przycisk "do góry" — przeniesiony do marquee-preview.js (jeden spójny
+// system, zgodny z klasami CSS zamiast inline style="display")
 
 
 
@@ -170,89 +128,24 @@ $(document).on("change", ".custom-file-input", function(evt) {
 
 
 
-// Use this in join films
+// Use this in join films — 5 identycznych pol wyboru pliku (join_films.blade.php)
+for (var i = 1; i <= 5; i++) {
+  (function (n) {
+    // pokaz nazwe wybranego pliku
+    $(".custom-file-input-" + n).on("change", function () {
+      var fileName = $(this).val().split("\\").pop();
+      $(this).siblings("#film_" + n).addClass("selected").html(fileName);
+    });
 
-//name of file appear on select
-$(".custom-file-input-1").on("change", function() {
-  var fileName = $(this).val().split("\\").pop();
-  $(this).siblings("#film_1").addClass("selected").html(fileName);
-});
-
-//name of file appear on select
-$(".custom-file-input-2").on("change", function() {
-  var fileName = $(this).val().split("\\").pop();
-  $(this).siblings("#film_2").addClass("selected").html(fileName);
-});
-
-//name of file appear on select
-$(".custom-file-input-3").on("change", function() {
-  var fileName = $(this).val().split("\\").pop();
-  $(this).siblings("#film_3").addClass("selected").html(fileName);
-});
-
-//name of file appear on select
-$(".custom-file-input-4").on("change", function() {
-  var fileName = $(this).val().split("\\").pop();
-  $(this).siblings("#film_4").addClass("selected").html(fileName);
-});
-
-//name of file appear on select
-$(".custom-file-input-5").on("change", function() {
-  var fileName = $(this).val().split("\\").pop();
-  $(this).siblings("#film_5").addClass("selected").html(fileName);
-});
-
-
-
-
-
-
-// show wideo poster if use input file
-$(function(){
-  $("#film_1").on('change', function(evt){
-    var $source = $('#video_here-1');
-    $source[0].src = URL.createObjectURL(this.files[0]);
-    $source.parent()[0].load();
-  })
-   
-});
-
-
-$(function(){
-  $("#film_2").on('change', function(evt){
-    var $source = $('#video_here-2');
-    $source[0].src = URL.createObjectURL(this.files[0]);
-    $source.parent()[0].load();
-  })
-   
-});
-
-
-$(function(){
-  $("#film_3").on('change', function(evt){
-    var $source = $('#video_here-3');
-    $source[0].src = URL.createObjectURL(this.files[0]);
-    $source.parent()[0].load();
-  })
-   
-});
-
-$(function(){
-  $("#film_4").on('change', function(evt){
-    var $source = $('#video_here-4');
-    $source[0].src = URL.createObjectURL(this.files[0]);
-    $source.parent()[0].load();
-  })
-   
-});
-
-$(function(){
-  $("#film_5").on('change', function(evt){
-    var $source = $('#video_here-5');
-    $source[0].src = URL.createObjectURL(this.files[0]);
-    $source.parent()[0].load();
-  })
-   
-});
+    // pokaz podglad wideo po wybraniu pliku
+    $(function () {
+      $("#film_" + n).on('change', function (evt) {
+        var $source = $('#video_here-' + n);
+        $source[0].src = URL.createObjectURL(this.files[0]);
+        $source.parent()[0].load();
+      });
+    });
+  })(i);
+}
 
 

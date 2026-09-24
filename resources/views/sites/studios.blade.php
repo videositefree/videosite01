@@ -6,7 +6,6 @@
 
 
 @section('content')
-<button onclick="topFunction()" id="myBtn">Top</button> 
 <div class="col-sm-12">
 
 @if( $count_studios >0 )
@@ -124,53 +123,35 @@ $(document).ready(function(){
 </script>
 
 
-<div class="col-sm-12 row">
+<div class="entity-grid">
 @foreach ($studios as $studio)
 
+<?php
+    $count_films = DB::table('studios')
+    ->join('films_studios', 'films_studios.studios_id', '=', 'studios.id')
+    ->join('films', 'films.id', '=', 'films_studios.film_id')
+    ->orderBy('name', 'ASC')
+    ->select('films.*')
+    ->where('studios.id', $studio->id)
+    ->where('activ', '=', '1')
+    ->distinct()
+    ->count();
+?>
 
-    <div class="col-sm-3 col-m-2" style="padding-top: 20px;">
-      <div class="card " style="background-color: #F5F5F5; border: none !important;">
-        <div class="wrapper">
-            <a href="{{ url('/select_studios', $studio->id) }}">
-                <img class="card-img-top img-fluid" src="{{URL::asset("$studio->thumbnail")}}">
-
-            <div class="film_number">
-                <i class="fas fa-video "></i> <?php 
-
-                $count_films = DB::table('studios')
-                ->join('films_studios', 'films_studios.studios_id', '=', 'studios.id')
-                ->join('films', 'films.id', '=', 'films_studios.film_id')
-                ->orderBy('name', 'ASC')
-                ->select('films.*')
-                ->where('studios.id', $studio->id)
-                ->where('activ', '=', '1')
-                ->distinct()
-                ->count();
-
-
-                    ?>&nbsp;&nbsp;{{$count_films}}
+    <a href="{{ url('/select_studios', $studio->id) }}" class="entity-card">
+            <div class="entity-card__media">
+                <img src="{{URL::asset("$studio->thumbnail")}}" alt="{{ $studio->name }}" loading="lazy">
+                <div class="film_number">
+                    <i class="fas fa-video"></i>&nbsp;&nbsp;{{$count_films}}
+                </div>
+                <div class="film_number_star">
+                    <i class="fas fa-star"></i>&nbsp;&nbsp;{{$studio->rating}}
+                </div>
             </div>
-
-            <div class="film_number_star">
-                <i class="fas fa-star "></i>
-                &nbsp;&nbsp;{{$studio->rating}}
-            </div>
-
-        </div>
-
-        <div class=" card-hover">
-        <a href="{{ url('/select_studios', $studio->id) }}">
-            <div class="card-body" style="border: 1px solid rgba(0, 0, 0, 0.125);">
-                
-                    {{$studio->name}}
-                
+            <div class="entity-card__body">
+                {{$studio->name}}
             </div>
         </a>
-        </div>
-
-        </a>
-      </div>
-    </div>
 
 @endforeach
 

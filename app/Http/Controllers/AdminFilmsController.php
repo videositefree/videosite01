@@ -33,6 +33,198 @@ use function PHPUnit\Framework\fileExists;
 class AdminFilmsController extends Controller
 {
 
+    // =========================================================================================================
+    // POMOCNICZE METODY QUERY — usuwają duplikację powtórzoną w wielu
+    // miejscach tego pliku (rodzina sortowania "films_*", dodawanie tagów/
+    // gwiazd/wytwórni w edit_films_add_tag, szukanie duplikatów w
+    // unique_tags/unique_stars/unique_studios, otwieranie folderów).
+    // =========================================================================================================
+
+    private function filmsSorted($orderColumn = 'id', $direction = 'DESC', $activOnly = null)
+    {
+        $query = DB::table('films')->orderBy($orderColumn, $direction);
+        if ($activOnly !== null) {
+            $query->where('activ', '=', $activOnly);
+        }
+        return $query->paginate(27);
+    }
+
+    private function attachTagToFilm($filmId, $tagId)
+    {
+        $exists = DB::table('films_tags')
+            ->where('film_id', $filmId)
+            ->where('tag_id', $tagId)
+            ->exists();
+
+        if (!$exists) {
+            $pivot = new films_tags;
+            $pivot->film_id = $filmId;
+            $pivot->tag_id = $tagId;
+            $pivot->save();
+            return $pivot->id;
+        }
+        return null;
+    }
+
+    private function attachTagsByName($filmId, $names)
+    {
+        $lastId = null;
+        if (empty($names)) {
+            return $lastId;
+        }
+        foreach ($names as $name) {
+            $matches = DB::table('tags')->where('name', '=', $name)->get();
+            foreach ($matches as $match) {
+                $id = $this->attachTagToFilm($filmId, $match->id);
+                if ($id !== null) {
+                    $lastId = $id;
+                }
+            }
+        }
+        return $lastId;
+    }
+
+    private function attachStarsByName($filmId, $names, $inheritTags)
+    {
+        $lastId = null;
+        if (empty($names)) {
+            return $lastId;
+        }
+
+        foreach ($names as $name) {
+            $matches = DB::table('stars')->where('name', '=', $name)->get();
+
+            foreach ($matches as $star) {
+                $exists = DB::table('films_stars')
+                    ->where('film_id', $filmId)
+                    ->where('stars_id', $star->id)
+                    ->exists();
+
+                if (!$exists) {
+                    $pivot = new films_stars;
+                    $pivot->film_id = $filmId;
+                    $pivot->stars_id = $star->id;
+                    $pivot->save();
+                    $lastId = $pivot->id;
+                }
+
+                if (!is_null($inheritTags)) {
+                    $inheritedTags = DB::table('stars')
+                        ->join('stars_tags', 'stars_tags.star_id', '=', 'stars.id')
+                        ->join('tags', 'stars_tags.tag_id', '=', 'tags.id')
+                        ->select('tags.name', 'stars_tags.tag_id', 'stars_tags.id')
+                        ->where('stars.id', $star->id)
+                        ->where('stars_tags.tag_db', 1)
+                        ->orderBy('stars.name', 'ASC')
+                        ->get();
+
+                    foreach ($inheritedTags as $row) {
+                        $this->attachTagToFilm($filmId, $row->tag_id);
+                    }
+                }
+            }
+        }
+        return $lastId;
+    }
+
+    private function attachStudiosByName($filmId, $names, $inheritTags)
+    {
+        $lastId = null;
+        if (empty($names)) {
+            return $lastId;
+        }
+
+        foreach ($names as $name) {
+            $matches = DB::table('studios')->where('name', '=', $name)->get();
+
+            foreach ($matches as $studio) {
+                $exists = DB::table('films_studios')
+                    ->where('film_id', $filmId)
+                    ->where('studios_id', $studio->id)
+                    ->exists();
+
+                if (!$exists) {
+                    $pivot = new films_studios;
+                    $pivot->film_id = $filmId;
+                    $pivot->studios_id = $studio->id;
+                    $pivot->save();
+                    $lastId = $pivot->id;
+                }
+
+                if (!is_null($inheritTags)) {
+                    $inheritedTags = DB::table('studios')
+                        ->join('studios_tags', 'studios_tags.studio_id', '=', 'studios.id')
+                        ->join('tags', 'studios_tags.tag_id', '=', 'tags.id')
+                        ->select('tags.name', 'studios_tags.tag_id', 'studios_tags.id')
+                        ->where('studios.id', $studio->id)
+                        ->where('studios_tags.tag_db', 1)
+                        ->orderBy('studios.name', 'ASC')
+                        ->get();
+
+                    foreach ($inheritedTags as $row) {
+                        $this->attachTagToFilm($filmId, $row->tag_id);
+                    }
+                }
+            }
+        }
+        return $lastId;
+    }
+
+    // ile razy dany film ma przypisany ten sam wpis dwukrotnie (duplikat)
+    private function findFilmsWithDuplicateEntity($pivotTable, $pivotIdColumn)
+    {
+        $result = [];
+        $films = DB::table('films')->select('films.*')->get();
+
+        foreach ($films as $film) {
+            $all = DB::table($pivotTable)->select($pivotIdColumn)->where('film_id', $film->id)->count();
+            $unique = DB::table($pivotTable)->select($pivotIdColumn)->where('film_id', $film->id)->distinct()->count($pivotIdColumn);
+
+            if ($all != $unique) {
+                $result[] = ['id' => $film->id, 'name' => $film->name];
+            }
+        }
+
+        return $result;
+    }
+
+    private function openStaticFolder($path)
+    {
+        if (is_dir($path)) {
+            shell_exec('start '.$path.'');
+            return redirect()->back();
+        }
+        return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+    }
+
+    // otwiera folder wyliczony ze ścieżki filmu (url/short/thumbnail); jeśli
+    // podano $fileDepth, próbuje dodatkowo zaznaczyć konkretny plik w Eksploratorze
+    private function openFilmFolder($id, $property, $folderDepth, $fileDepth = null)
+    {
+        $films = films::find($id);
+        $sourceUrl = $films->{$property};
+
+        $string = explode("/", $sourceUrl);
+        $urlFolder = implode('\\', array_slice($string, 0, $folderDepth));
+
+        if (!is_dir($urlFolder)) {
+            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+        }
+
+        if ($fileDepth !== null) {
+            $urlFile = implode('\\', array_slice($string, 0, $fileDepth));
+            if (file_exists($urlFile)) {
+                shell_exec('explorer /select, '.$urlFile.'');
+            } else {
+                shell_exec('start '.$urlFolder.'');
+            }
+        } else {
+            shell_exec('start '.$urlFolder.'');
+        }
+
+        return redirect()->back();
+    }
+
     public function __construct()
     {
         $this->middleware('auth'); 
@@ -41,9 +233,8 @@ class AdminFilmsController extends Controller
     //==================================================================== BLADE ========================================================= //
     public function films(){
 
-        
-        $films = DB::table('films')->orderBy('id', 'DESC')->paginate(27);
-        $all_films = DB::table('films')->orderBy('id', 'DESC')->paginate(27);
+        $films = $this->filmsSorted('id', 'DESC');
+        $all_films = $films;
         $count_films = DB::table('films')->count();
         return view('admin.admin_films', compact('films', 'count_films', 'all_films'));
        
@@ -325,158 +516,33 @@ class AdminFilmsController extends Controller
     //==================================================================== END ========================================================= //
 
     public function open_main_folder_film() {
-
- 
-        $url_film = "..\\..\\filmy\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openStaticFolder("..\\..\\filmy\\");
     }
 
     public function open_main_folder_thumbnail() {
-
- 
-        $url_film = "..\\..\\filmy\\thumbnail\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openStaticFolder("..\\..\\filmy\\thumbnail\\");
     }
 
     public function open_main_folder_short() {
-
- 
-        $url_film = "..\\..\\filmy\\short\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openStaticFolder("..\\..\\filmy\\short\\");
     }
 
 
 
     public function open_folder_film($id) {
-
-        $films = films::find($id);
-
-        $url_film = $films->url;
-
-        $string = explode("/", $url_film);
-        $url_film = implode('\\', array_slice($string, 0, 3));
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openFilmFolder($id, 'url', 3);
     }
 
     public function open_folder_film_next($id) {
-
-        $films = films::find($id);
-
-        $url_film = $films->url;
-
-
-        $string = explode("/", $url_film);
-        $url_film = implode('\\', array_slice($string, 0, 4));
-        $url_filmm = implode('\\', array_slice($string, 0, 5));
-
-
-        if (is_dir($url_film)){
-            if(file_exists($url_filmm)){
-            shell_exec('explorer /select, '.$url_filmm.'');
-            }
-            else
-            {
-                shell_exec('start '.$url_film.'');
-            }
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openFilmFolder($id, 'url', 4, 5);
     }
 
     public function open_folder_film_short($id) {
-
-        $films = films::find($id);
-
-        $url_sort = $films->short;
-
-
-        $string = explode("/", $url_sort);
-        $url_film = implode('\\', array_slice($string, 0, 4));
-        $url_filmm = implode('\\', array_slice($string, 0, 5));
-
-
-        if (is_dir($url_film)){
-            if(file_exists($url_filmm)){
-            shell_exec('explorer /select, '.$url_filmm.'');
-            }
-            else
-            {
-            shell_exec('start '.$url_film.'');
-            }
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openFilmFolder($id, 'short', 4, 5);
     }
 
     public function open_folder_film_thumbnail($id) {
-
-        $films = films::find($id);
-
-  
-        $url_thumbnail = $films->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 4));
-        $url_filmm = implode('\\', array_slice($string, 0, 5));
-
-
-        if (is_dir($url_film)){
-
-            if(file_exists($url_filmm)){
-            shell_exec('explorer /select, '.$url_filmm.'');
-            }
-            else
-            {
-                shell_exec('start '.$url_film.'');
-            }
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openFilmFolder($id, 'thumbnail', 4, 5);
     }
 
 
@@ -768,191 +834,9 @@ class AdminFilmsController extends Controller
         $checkbox_stars_tag = $request -> input('extra_tag_stars');
         $checkbox_studios_tag = $request -> input('extra_tag_studios');
 
-        $multiTag = $request -> input('multiTag');
-
-        if(!empty($multiTag)){
-                
-            foreach ($multiTag as $key=>$tag){
-
-                $query = DB::table('tags')
-                ->where('name', '=', $tag)
-                ->get();                    
-                $tagscount = $query->count();
-                
-                if($tagscount > 0) {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-                        
-                        $films_tags_db = DB::table('films_tags')
-                        ->select('tag_id')
-                        ->where('film_id', $films_id)
-                        ->where('tag_id', $tag_id)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-                            $films_tags = new films_tags;
-                            $films_tags->film_id = $films_id;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->save();
-                            $last_id_tag = $films_tags->id;
-                        }
-
-
-                     
-                    }
-                }
-            }
-        }
-    
-            
-     
-        $multiStar = $request -> input('multiStar');
-
-        if(!empty($multiStar)){
-                
-            foreach ($multiStar as $key=>$stars){
-
-                $query = DB::table('stars')
-                ->where('name', '=', $stars)
-                ->get();
-
-                $starcount = $query->count();
-
-                if($starcount > 0) {
-                    foreach ($query as $star) {
-                        $star_id = $star->id;
-
-                        $films_stars_db = DB::table('films_stars')
-                        ->select('stars_id')
-                        ->where('film_id', $films_id)
-                        ->where('stars_id', $star_id)
-                        ->get();
-
-                        if($films_stars_db->isEmpty()){
-                            $films_stars = new films_stars;
-                            $films_stars->film_id = $films_id;
-                            $films_stars->stars_id = $star_id;
-
-                            $films_stars->save();
-                            $last_id_star = $films_stars->id;
-                        }
-
-
-                        if(!is_null($checkbox_stars_tag)){
-   
-                            //add tag stars from database tag films 
-                            $tags_films = DB::table('stars')
-                            ->join('stars_tags', 'stars_tags.star_id', '=', 'stars.id')
-                            ->join('tags', 'stars_tags.tag_id', '=', 'tags.id')
-                            ->select('tags.name', 'stars_tags.tag_id', 'stars_tags.id')
-                            ->where('stars.id', $star_id)
-                            ->where('stars_tags.tag_db', 1)
-                            ->orderBy('stars.name', 'ASC')
-                            ->get();
-
-                            foreach ($tags_films as $star) {
-                                $star_id = $star -> tag_id;
-
-                                $films_tags_db = DB::table('films_tags')
-                                ->select('tag_id')
-                                ->where('film_id', $films_id)
-                                ->where('tag_id', $star_id)
-                                ->get();
-
-                                if($films_tags_db->isEmpty()){
-
-                                    $films_tags = new films_tags;                            
-                                    $films_tags->film_id = $films_id;
-                                    $films_tags->tag_id = $star_id;
-                                    $films_tags->save();
-
-                                }
-
-
-                            }
-                        
-                        }
-
-  
-                    }
-                }
-            }
-        }
-
-
-        
-        $multiStudios = $request -> input('multiStudios');
-
-        if(!empty($multiStudios)){
-                
-            foreach ($multiStudios as $key=>$studios){
-
-                $query = DB::table('studios')
-                ->where('name', '=', $studios)
-                ->get();
-
-                $studioscount = $query->count();
-
-                if($studioscount > 0) {
-                    foreach ($query as $studios) {
-                        $studios_id = $studios->id;
-
-                        $films_studios_db = DB::table('films_studios')
-                        ->select('studios_id')
-                        ->where('film_id', $films_id)
-                        ->where('studios_id', $studios_id)
-                        ->get();
-
-                        if($films_studios_db->isEmpty()){
-                            $films_studios = new films_studios;
-                            $films_studios->film_id = $films_id;
-                            $films_studios->studios_id = $studios_id;
-
-                            $films_studios->save();
-                            $last_id_studios = $films_studios->id;
-
-                        }
-
-
-                        if(!is_null($checkbox_studios_tag)){
-                            //add tag stars from database tag films 
-                            $tags_films = DB::table('studios')
-                            ->join('studios_tags', 'studios_tags.studio_id', '=', 'studios.id')
-                            ->join('tags', 'studios_tags.tag_id', '=', 'tags.id')
-                            ->select('tags.name', 'studios_tags.tag_id', 'studios_tags.id')
-                            ->where('studios.id', $studios_id)
-                            ->where('studios_tags.tag_db', 1)
-                            ->orderBy('studios.name', 'ASC')
-                            ->get();
-
-                            foreach ($tags_films as $studios) {
-                                $studios_id = $studios -> tag_id;
-
-                                $films_tags_db = DB::table('films_tags')
-                                ->select('tag_id')
-                                ->where('film_id', $films_id)
-                                ->where('tag_id', $studios_id)
-                                ->get();
-
-                                if($films_tags_db->isEmpty()){
-
-                                    $films_tags = new films_tags;                            
-                                    $films_tags->film_id = $films_id;
-                                    $films_tags->tag_id = $studios_id;
-                                    $films_tags->save();
-
-                                }
-
-
-                            }
-                        }
-
-  
-                    }
-                }
-            }
-        }
-
+        $last_id_tag = $this->attachTagsByName($films_id, $request->input('multiTag'));
+        $last_id_star = $this->attachStarsByName($films_id, $request->input('multiStar'), $checkbox_stars_tag);
+        $last_id_studios = $this->attachStudiosByName($films_id, $request->input('multiStudios'), $checkbox_studios_tag);
 
         if(isset($last_id_tag) && isset($last_id_star) && isset($last_id_studios)) {
         
@@ -989,9 +873,6 @@ class AdminFilmsController extends Controller
             Jeśli dodajesz nowe i problem nadal występuje skontaktuj się z administratorem.');
 
         }
-        
-
-
 
     }
 
@@ -1019,9 +900,8 @@ class AdminFilmsController extends Controller
 
     public function films_id_asc(){
 
-        
-        $films = DB::table('films')->orderBy('id', 'ASC')->paginate(27);
-        $all_films = DB::table('films')->orderBy('id', 'ASC')->paginate(27);
+        $films = $this->filmsSorted('id', 'ASC');
+        $all_films = $films;
         $count_films = DB::table('films')->count();
         return view('admin.admin_films', compact('films', 'count_films', 'all_films'));
        
@@ -1029,9 +909,8 @@ class AdminFilmsController extends Controller
 
     public function films_name_asc(){
 
-        
-        $films = DB::table('films')->orderBy('name', 'ASC')->paginate(27);
-        $all_films = DB::table('films')->orderBy('name', 'ASC')->paginate(27);
+        $films = $this->filmsSorted('name', 'ASC');
+        $all_films = $films;
         $count_films = DB::table('films')->count();
         return view('admin.admin_films', compact('films', 'count_films', 'all_films'));
        
@@ -1039,9 +918,8 @@ class AdminFilmsController extends Controller
 
     public function films_name_desc(){
 
-        
-        $films = DB::table('films')->orderBy('name', 'DESC')->paginate(27);
-        $all_films = DB::table('films')->orderBy('name', 'DESC')->paginate(27);
+        $films = $this->filmsSorted('name', 'DESC');
+        $all_films = $films;
         $count_films = DB::table('films')->count();
         return view('admin.admin_films', compact('films', 'count_films', 'all_films'));
        
@@ -1049,9 +927,8 @@ class AdminFilmsController extends Controller
 
     public function films_rating_asc(){
 
-        
-        $films = DB::table('films')->orderBy('rating', 'ASC')->paginate(27);
-        $all_films = DB::table('films')->orderBy('rating', 'ASC')->paginate(27);
+        $films = $this->filmsSorted('rating', 'ASC');
+        $all_films = $films;
         $count_films = DB::table('films')->count();
         return view('admin.admin_films', compact('films', 'count_films', 'all_films'));
        
@@ -1059,9 +936,8 @@ class AdminFilmsController extends Controller
 
     public function films_rating_desc(){
 
-        
-        $films = DB::table('films')->orderBy('rating', 'DESC')->paginate(27);
-        $all_films = DB::table('films')->orderBy('rating', 'DESC')->paginate(27);
+        $films = $this->filmsSorted('rating', 'DESC');
+        $all_films = $films;
         $count_films = DB::table('films')->count();
         return view('admin.admin_films', compact('films', 'count_films', 'all_films'));
        
@@ -1069,9 +945,8 @@ class AdminFilmsController extends Controller
 
     public function films_on_desc(){
 
-        
-        $films = DB::table('films')->orderBy('id', 'DESC')->where('activ', '=', '1')->paginate(27);
-        $all_films = DB::table('films')->orderBy('id', 'DESC')->where('activ', '=', '1')->paginate(27);
+        $films = $this->filmsSorted('id', 'DESC', '1');
+        $all_films = $films;
         $count_films = DB::table('films')->count();
         return view('admin.admin_films', compact('films', 'count_films', 'all_films'));
        
@@ -1079,9 +954,8 @@ class AdminFilmsController extends Controller
 
     public function films_off_desc(){
 
-        
-        $films = DB::table('films')->orderBy('id', 'DESC')->where('activ', '=', '0')->paginate(27);
-        $all_films = DB::table('films')->orderBy('id', 'DESC')->where('activ', '=', '0')->paginate(27);
+        $films = $this->filmsSorted('id', 'DESC', '0');
+        $all_films = $films;
         $count_films = DB::table('films')->count();
         return view('admin.admin_films', compact('films', 'count_films', 'all_films'));
        
@@ -1089,61 +963,9 @@ class AdminFilmsController extends Controller
 
 
     public function unique_tags(){
-        
-        //Check duplicate tags, stars, studios in films
 
-        $check_count_films = DB::table('films')
-        ->select('films.*')
-        ->get();
-        $films_tags = array();
-        $i = 0;
-        foreach($check_count_films as $check_count_films){
-
-            $id = $check_count_films->id;
-            $name = $check_count_films->name;
-        
-
-            $all_films = DB::table('films_tags')
-            ->select('tag_id')
-            ->where('film_id','=',$id)
-            ->orderBy('films_tags.tag_id','desc')
-            ->count();
-            
-            $unique_films = DB::table('films_tags')
-            ->select('tag_id')
-            ->where('film_id','=',$id)
-            ->orderBy('films_tags.tag_id','desc')
-            ->distinct()
-            ->count('tag_id');
-            
-
-            
-            if ($all_films != $unique_films){
-     
-                
- 
-                $films_tags[$i]['id'] = $id;
-                $films_tags[$i]['name'] = $name;
-                $i++;
-   
-                
-               
-              
-
-            }
-
-
-        }
-    
-
-        if(!empty($films_tags)){
-            $count_films = 1;
-        }
-        else
-        {
-            $count_films = 0; 
-        }
-
+        $films_tags = $this->findFilmsWithDuplicateEntity('films_tags', 'tag_id');
+        $count_films = !empty($films_tags) ? 1 : 0;
         $tags_name = 1;
         return view('admin.unique_db.admin_unique_tags', compact('films_tags', 'count_films', 'tags_name'));
     }
@@ -1152,61 +974,9 @@ class AdminFilmsController extends Controller
 
 
     public function unique_stars(){
-        
-        //Check duplicate tags, stars, studios in films
 
-        $check_count_films = DB::table('films')
-        ->select('films.*')
-        ->get();
-        $films_stars = array();
-        $i = 0;
-        foreach($check_count_films as $check_count_films){
-
-            $id = $check_count_films->id;
-            $name = $check_count_films->name;
-        
-
-            $all_films = DB::table('films_stars')
-            ->select('stars_id')
-            ->where('film_id','=',$id)
-            ->orderBy('films_stars.stars_id','desc')
-            ->count();
-            
-            $unique_films = DB::table('films_stars')
-            ->select('stars_id')
-            ->where('film_id','=',$id)
-            ->orderBy('films_stars.stars_id','desc')
-            ->distinct()
-            ->count('stars_id');
-            
-
-            
-            if ($all_films != $unique_films){
-     
-                
- 
-                $films_stars[$i]['id'] = $id;
-                $films_stars[$i]['name'] = $name;
-                $i++;
-   
-                
-               
-              
-
-            }
-
-
-        }
-    
-
-        if(!empty($films_stars)){
-            $count_films = 1;
-        }
-        else
-        {
-            $count_films = 0; 
-        }
-
+        $films_stars = $this->findFilmsWithDuplicateEntity('films_stars', 'stars_id');
+        $count_films = !empty($films_stars) ? 1 : 0;
         $stars_name = 1;
         return view('admin.unique_db.admin_unique_tags', compact('films_stars', 'count_films', 'stars_name'));
     }
@@ -1215,61 +985,9 @@ class AdminFilmsController extends Controller
 
 
     public function unique_studios(){
-        
-        //Check duplicate tags, stars, studios in films
 
-        $check_count_films = DB::table('films')
-        ->select('films.*')
-        ->get();
-        $films_studios = array();
-        $i = 0;
-        foreach($check_count_films as $check_count_films){
-
-            $id = $check_count_films->id;
-            $name = $check_count_films->name;
-        
-
-            $all_films = DB::table('films_studios')
-            ->select('studios_id')
-            ->where('film_id','=',$id)
-            ->orderBy('films_studios.studios_id','desc')
-            ->count();
-            
-            $unique_films = DB::table('films_studios')
-            ->select('studios_id')
-            ->where('film_id','=',$id)
-            ->orderBy('films_studios.studios_id','desc')
-            ->distinct()
-            ->count('studios_id');
-            
-
-            
-            if ($all_films != $unique_films){
-     
-                
- 
-                $films_studios[$i]['id'] = $id;
-                $films_studios[$i]['name'] = $name;
-                $i++;
-   
-                
-               
-              
-
-            }
-
-
-        }
-    
-
-        if(!empty($films_studios)){
-            $count_films = 1;
-        }
-        else
-        {
-            $count_films = 0; 
-        }
-
+        $films_studios = $this->findFilmsWithDuplicateEntity('films_studios', 'studios_id');
+        $count_films = !empty($films_studios) ? 1 : 0;
         $studios_name = 1;
         return view('admin.unique_db.admin_unique_tags', compact('films_studios', 'count_films', 'studios_name'));
     }
@@ -1313,23 +1031,13 @@ class AdminFilmsController extends Controller
             $url = url('/edit_films',$id);
             $url_delete = url('/delete_files_from_admin_search_films',$id);
             echo '
-            <div class="col-sm-3 ">
-                <div class=" m-2 ">
-                    <div class="card video-wrapper" style="background-color: #F5F5F5;">
-
-                    <img src="'.$thumbnail.'" height="270" ></img>
-                        
-                    <div class="card-body jssearch">
-                        <p class="card-text">'.$name.'</p>
-                    </div>
-
-                    <div class="jssearch">
-                    <a href="'.$url.'" class="btn btn-info">Edytuj</a>
-
-                    <a href="'.$url_delete.'" class="btn btn-danger">Usuń</a>
-                    
-                    </div>
-
+            <div class="admin-search-card">
+                <img src="'.$thumbnail.'" alt="'.htmlspecialchars($name).'" loading="lazy">
+                <div class="admin-search-card__body">
+                    <div class="admin-search-card__name">'.htmlspecialchars($name).'</div>
+                    <div class="admin-search-card__actions">
+                        <a href="'.$url.'" class="btn btn-info">Edytuj</a>
+                        <a href="'.$url_delete.'" class="btn btn-danger">Usuń</a>
                     </div>
                 </div>
             </div>

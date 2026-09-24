@@ -24,11 +24,143 @@ class AdminTagssitesController extends Controller
         $this->middleware('auth'); 
     }
 
+    // =========================================================================================================
+    // POMOCNICZE METODY
+    // =========================================================================================================
+
+    private function tagsSitesSorted($orderColumn = 'id', $direction = 'DESC')
+    {
+        return DB::table('tags_sites')->orderBy($orderColumn, $direction)->paginate(27);
+    }
+
+    private function attachTagToSite($siteId, $tagId, $tagDb)
+    {
+        $exists = DB::table('sites_tags')
+            ->where('site_id', $siteId)
+            ->where('tag_id', $tagId)
+            ->where('tag_db', $tagDb)
+            ->exists();
+
+        if (!$exists) {
+            $pivot = new sites_tags;
+            $pivot->site_id = $siteId;
+            $pivot->tag_id = $tagId;
+            $pivot->tag_db = $tagDb;
+            $pivot->save();
+            return $pivot->id;
+        }
+        return null;
+    }
+
+    // $tagDb=0 -> tabela tags_sites (własne tagi stron), $tagDb=1 -> tabela tags (wspólna z filmami)
+    private function attachTagsToSiteByName($siteId, $names, $tagDb)
+    {
+        $lastId = null;
+        if (empty($names)) {
+            return $lastId;
+        }
+        $table = $tagDb === 0 ? 'tags_sites' : 'tags';
+
+        foreach ($names as $name) {
+            $matches = DB::table($table)->where('name', '=', $name)->get();
+            foreach ($matches as $match) {
+                $id = $this->attachTagToSite($siteId, $match->id, $tagDb);
+                if ($id !== null) {
+                    $lastId = $id;
+                }
+            }
+        }
+        return $lastId;
+    }
+
+    private function openStaticFolder($path)
+    {
+        if (is_dir($path)) {
+            shell_exec('start '.$path.'');
+            return redirect()->back();
+        }
+        return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+    }
+
+    private function openTagsSitesFolder($id, $folderDepth, $fileDepth = null)
+    {
+        $tags = tags_sites::find($id);
+        $string = explode("/", $tags->thumbnail);
+        $urlFolder = implode('\\', array_slice($string, 0, $folderDepth));
+
+        if (!is_dir($urlFolder)) {
+            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
+        }
+
+        if ($fileDepth !== null) {
+            $urlFile = implode('\\', array_slice($string, 0, $fileDepth));
+            if (file_exists($urlFile)) {
+                shell_exec('explorer /select, '.$urlFile.'');
+            } else {
+                shell_exec('start '.$urlFolder.'');
+            }
+        } else {
+            shell_exec('start '.$urlFolder.'');
+        }
+
+        return redirect()->back();
+    }
+
+    // wspólne zapytanie dla całej rodziny select_categories_sites* — strony przypisane do tagu
+    private function sitesForTagQuery($tagTable, $id, $tagDb, $orderColumn, $direction)
+    {
+        return DB::table($tagTable)
+            ->join('sites_tags', 'sites_tags.tag_id', '=', $tagTable.'.id')
+            ->join('site', 'site.id', '=', 'sites_tags.site_id')
+            ->orderBy($orderColumn, $direction)
+            ->select('site.*')
+            ->where($tagTable.'.id', $id)
+            ->where('sites_tags.tag_db', $tagDb)
+            ->distinct();
+    }
+
+    private function countSitesForTag($tagTable, $id, $tagDb)
+    {
+        return $this->sitesForTagQuery($tagTable, $id, $tagDb, 'name', 'ASC')->count();
+    }
+
+    private function renderEntityCard($url, $urlEdit, $urlDelete, $thumbnail, $count, $name)
+    {
+        return '
+            <div class="entity-col">
+                <a href="'.$url.'" class="entity-card">
+                    <div class="entity-card__media">
+                        <img src="'.$thumbnail.'" alt="'.htmlspecialchars($name).'" loading="lazy">
+                        <div class="film_number_search"><i class="fas fa-tag"></i>&nbsp;&nbsp;'.$count.'</div>
+                    </div>
+                    <div class="entity-card__body">'.htmlspecialchars($name).'</div>
+                </a>
+                <div class="jssearch" style="display:flex; gap:8px; margin-top:8px;">
+                    <a href="'.$urlEdit.'" class="btn btn-info">Edytuj</a>
+                    <a href="'.$urlDelete.'" class="btn btn-danger">Usuń</a>
+                </div>
+            </div>
+        ';
+    }
+
+    private function renderEmptySearchResult()
+    {
+        return '
+            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
+                <div class="alert alert-danger">
+                    <ul>
+                        Przepraszamy ale nie mamy tego czego szukasz :/
+                    </ul>
+                </div>
+            </div>
+        ';
+    }
+
 
     public function tags_sites(){
 
-        $tags = DB::table('tags_sites')->orderBy('id', 'DESC')->paginate(27);
-        $all_tags = DB::table('tags_sites')->orderBy('id', 'DESC')->paginate(27);
+        $tags = $this->tagsSitesSorted('id', 'DESC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_sites')->count();
         return view('admin.tags_sites.admin_tags_sites',compact('tags', 'count_tags', 'all_tags'));
        
@@ -40,8 +172,8 @@ class AdminTagssitesController extends Controller
 
     public function tags_sites_id_asc(){
 
-        $tags = DB::table('tags_sites')->orderBy('id', 'ASC')->paginate(27);
-        $all_tags = DB::table('tags_sites')->orderBy('id', 'ASC')->paginate(27);
+        $tags = $this->tagsSitesSorted('id', 'ASC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_sites')->count();
         return view('admin.tags_sites.admin_tags_sites',compact('tags', 'count_tags', 'all_tags'));
        
@@ -49,8 +181,8 @@ class AdminTagssitesController extends Controller
 
     public function tags_sites_name_asc(){
 
-        $tags = DB::table('tags_sites')->orderBy('name', 'ASC')->paginate(27);
-        $all_tags = DB::table('tags_sites')->orderBy('name', 'ASC')->paginate(27);
+        $tags = $this->tagsSitesSorted('name', 'ASC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_sites')->count();
         return view('admin.tags_sites.admin_tags_sites',compact('tags', 'count_tags', 'all_tags'));
        
@@ -58,8 +190,8 @@ class AdminTagssitesController extends Controller
 
     public function tags_sites_name_desc(){
 
-        $tags = DB::table('tags_sites')->orderBy('name', 'DESC')->paginate(27);
-        $all_tags = DB::table('tags_sites')->orderBy('name', 'DESC')->paginate(27);
+        $tags = $this->tagsSitesSorted('name', 'DESC');
+        $all_tags = $tags;
         $count_tags = DB::table('tags_sites')->count();
         return view('admin.tags_sites.admin_tags_sites',compact('tags', 'count_tags', 'all_tags'));
        
@@ -101,10 +233,6 @@ class AdminTagssitesController extends Controller
         $resize_img = $request -> input('resize_img');
         $height_img = $request -> input('height_img');
         $width_img = $request -> input('width_img');
-
-        if(!is_null($height_img) && !is_null($width_img)){
-            echo "podana wysokość to".$height_img;
-        }
 
 
 
@@ -211,43 +339,14 @@ class AdminTagssitesController extends Controller
 
     //================================================================== Open folders tags_sites ================================================== //
     public function open_main_folder_tags_sites() {
-
- 
-        $url_film = "..\\..\\filmy\\thumbnail\\tags_sites\\";
-
-        if (is_dir($url_film)){
-        shell_exec('start '.$url_film.'');
-        return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-        
-
+        return $this->openStaticFolder("..\\..\\filmy\\thumbnail\\tags_sites\\");
     }
     //============================================================================ END ============================================================ //
 
 
     //=========================================================== Open folders thumbnail in edit_tags blade ======================================= //
     public function open_folder_tags_sites($id) {
-
-        $tags = tags_sites::find($id);
-
-  
-        $url_thumbnail = $tags->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 4));
-
-
-        if (is_dir($url_film)){
-            shell_exec('start '.$url_film.'');
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openTagsSitesFolder($id, 4);
     }
     //============================================================================ END ============================================================ //
 
@@ -255,31 +354,7 @@ class AdminTagssitesController extends Controller
     
     //==================================================================== SAVE EDIT TAGS =========================================================== //
     public function open_folder_tags_next_sites($id) {
-
-        $tags = tags_sites::find($id);
-
-  
-        $url_thumbnail = $tags->thumbnail;
-
-        $string = explode("/", $url_thumbnail);
-        $url_film = implode('\\', array_slice($string, 0, 5));
-        $url_filmm = implode('\\', array_slice($string, 0, 6));
-
-
-        if (is_dir($url_film)){
-            if(file_exists($url_filmm)){
-            shell_exec('explorer /select, '.$url_filmm.'');
-            }
-            else
-            {
-                shell_exec('start'.$url_film.'');
-            }
-            return redirect()->back();
-        }
-        else{
-            return redirect()->back()->with('msg_errors', 'Błąd wyświetlania folderu. Prosimy o kontakt z administratorem.');
-        }
-
+        return $this->openTagsSitesFolder($id, 5, 6);
     }
     //============================================================================ END ============================================================ //
 
@@ -523,65 +598,23 @@ class AdminTagssitesController extends Controller
         $thumbnail = $tags->thumbnail;
         $url = url('/edit_tags_sites',$id);
         $url_delete = url('/delete_files_from_admin_search_tags_sites',$id);
-
-        $count_films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('name', 'ASC')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->count();
         
+        $count_films = $this->countSitesForTag('tags_sites', $id, 0);
+
         $url_films = url('/select_categories_sites',$id);
 
-        echo '
-        <div class="col-sm-3 ">
-                <div class=" m-2 ">
-                    <div class="card video-wrapper" style="background-color: #F5F5F5;">
-
-                    <img src="'.$thumbnail.'" height="270" ></img>
-
-                    <a href="'.$url_films.'">
-                        <div class="film_number_search">
-                            <i class="fas fa-tag">&nbsp;&nbsp;'.$count_films.'</i>
-                        </div>
-                    </a>
-                        
-                    <div class="card-body jssearch">
-                        <p class="card-text">'.$name.'</p>
-                    </div>
-
-                    <div class="jssearch">
-                    <a href="'.$url.'" class="btn btn-info">Edytuj</a>
-                    <a href="'.$url_delete.'" class="btn btn-danger">Usuń</a>
-                    </div>
-
-                    </div>
-                </div>
-            </div>
-        ';
+        echo $this->renderEntityCard($url_films, $url, $url_delete, $thumbnail, $count_films, $name);
         
         }
 
         }
         else
         {
-            echo '
-            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
-                <div class="alert alert-danger">
-                    <ul>
-                        Przepraszamy ale nie mamy tego czego szukasz :/
-                    </ul>
-                </div>
-            </div>
-            '; 
+            echo $this->renderEmptySearchResult();
         }
 
         
     }
-    //==================================================================== END =========================================================== //
 
     
     
@@ -654,94 +687,10 @@ class AdminTagssitesController extends Controller
     public function sites_tag_add_edit_site(Request $request){
 
         $last_id = $request -> input('id');
-        $multiTag = $request -> input('multiTag');
-        // add new tags for films 
-        if(!empty($multiTag))
-        {
-            foreach ($multiTag as $key=>$tag) 
-            {
 
-                $query = DB::table('tags_sites')
-                ->where('name', '=', $tag)
-                ->get();
-                
-                $tagscount = $query->count();
-
-                if($tagscount > 0) 
-                {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-
-                        $films_tags_db = DB::table('sites_tags')
-                        ->select('tag_id')
-                        ->where('site_id', $last_id)
-                        ->where('tag_id', $tag_id)
-                        ->where('tag_db', 0)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-
-                            $films_tags = new sites_tags;                            
-                            $films_tags->site_id = $last_id;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->tag_db = 0;
-                            $films_tags->save();
-                            $last_id_db = $films_tags->id;
-                        }
-                        
-                        
-                    }
-
-                    
-                }
-            }
-        }
-
-
-
-
-        $multiTagFilms = $request -> input('multiTagFilms');
-        // add new tags for films 
-        if(!empty($multiTagFilms))
-        {
-            foreach ($multiTagFilms as $key=>$tag) 
-            {
-
-                $query = DB::table('tags')
-                ->where('name', '=', $tag)
-                ->get();
-                
-                $tagscount = $query->count();
-
-                if($tagscount > 0) 
-                {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-
-                        $films_tags_db = DB::table('sites_tags')
-                        ->select('tag_id')
-                        ->where('site_id', $last_id)
-                        ->where('tag_id', $tag_id)
-                        ->where('tag_db', 1)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-
-                            $films_tags = new sites_tags;                            
-                            $films_tags->site_id = $last_id;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->tag_db = 1;
-                            $films_tags->save();
-                            $last_id_db = $films_tags->id;
-                        }
-                        
-                        
-                    }
-
-                    
-                }
-            }
-        }
+        $result1 = $this->attachTagsToSiteByName($last_id, $request->input('multiTag'), 0);
+        $result2 = $this->attachTagsToSiteByName($last_id, $request->input('multiTagFilms'), 1);
+        $last_id_db = $result1 ?? $result2;
 
         if(isset($last_id_db)) {
         
@@ -751,314 +700,128 @@ class AdminTagssitesController extends Controller
         {
             return redirect()->back()->with('msg_errors', 'Możliwe że taki tag jest już przypisany do tego rekordu.</br> Jeśli błąd występuje skontaktuj się z administratorem.');
         }
-        
     }
     //============================================================================ END ============================================================ //
-    
 
 
 
     // ============================ DISPLAY ALL FILMS WHERE TAGS, STARS, PRODUCTION HAVE THE SAME NAME AND TAG_DB = 0! ============================ //
-
     public function select_categories_sites($id)
     {
-
-
-        $films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('site.created_at', 'desc')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('name', 'ASC')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->sitesForTagQuery('tags_sites', $id, 0, 'site.created_at', 'desc')->paginate(27);
+        $count_films = $this->countSitesForTag('tags_sites', $id, 0);
 
         $site_url_sites = '1';
-
         $tags_another_sites = DB::table('tags_sites')->where('id', $id)->first();
-
         $hidden_id_sites = $id;
         $admin_tags_sites_data_asc = 1;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_sites', 'site_url_sites', 'hidden_id_sites', 'admin_tags_sites_data_asc'));
-
- 
     }
     //============================================================================ FILTRS ============================================================ //
 
 
     public function select_categories_sites_date_asc($id)
     {
-
-
-        $films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('site.created_at', 'asc')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('name', 'ASC')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->sitesForTagQuery('tags_sites', $id, 0, 'site.created_at', 'asc')->paginate(27);
+        $count_films = $this->countSitesForTag('tags_sites', $id, 0);
 
         $site_url_sites = '1';
-
         $tags_another_sites = DB::table('tags_sites')->where('id', $id)->first();
-
         $hidden_id_sites = $id;
         $admin_tags_sites_data_desc = 1;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_sites', 'site_url_sites', 'hidden_id_sites', 'admin_tags_sites_data_desc'));
-
- 
     }
 
 
     public function select_categories_sites_name_asc($id)
     {
-
-
-        $films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('site.name', 'asc')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('name', 'ASC')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->sitesForTagQuery('tags_sites', $id, 0, 'site.name', 'asc')->paginate(27);
+        $count_films = $this->countSitesForTag('tags_sites', $id, 0);
 
         $site_url_sites = '1';
-
         $tags_another_sites = DB::table('tags_sites')->where('id', $id)->first();
-
         $hidden_id_sites = $id;
         $admin_tags_sites_name_asc = 1;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_sites', 'site_url_sites', 'hidden_id_sites', 'admin_tags_sites_name_asc'));
-
- 
     }
 
 
     public function select_categories_sites_name_desc($id)
     {
-
-
-        $films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('site.name', 'desc')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('name', 'ASC')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->sitesForTagQuery('tags_sites', $id, 0, 'site.name', 'desc')->paginate(27);
+        $count_films = $this->countSitesForTag('tags_sites', $id, 0);
 
         $site_url_sites = '1';
-
         $tags_another_sites = DB::table('tags_sites')->where('id', $id)->first();
-
         $hidden_id_sites = $id;
         $admin_tags_sites_name_desc = 1;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_sites', 'site_url_sites', 'hidden_id_sites', 'admin_tags_sites_name_desc'));
-
- 
     }
 
     public function select_categories_sites_rating_asc($id)
     {
-
-
-        $films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('site.rating', 'asc')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('name', 'ASC')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->sitesForTagQuery('tags_sites', $id, 0, 'site.rating', 'asc')->paginate(27);
+        $count_films = $this->countSitesForTag('tags_sites', $id, 0);
 
         $site_url_sites = '1';
-
         $tags_another_sites = DB::table('tags_sites')->where('id', $id)->first();
-
         $hidden_id_sites = $id;
         $admin_tags_sites_rating_asc = 1;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_sites', 'site_url_sites', 'hidden_id_sites', 'admin_tags_sites_rating_asc'));
-
- 
     }
 
     public function select_categories_sites_rating_desc($id)
     {
-
-
-        $films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('site.rating', 'desc')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('name', 'ASC')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+        $films = $this->sitesForTagQuery('tags_sites', $id, 0, 'site.rating', 'desc')->paginate(27);
+        $count_films = $this->countSitesForTag('tags_sites', $id, 0);
 
         $site_url_sites = '1';
-
         $tags_another_sites = DB::table('tags_sites')->where('id', $id)->first();
-
         $hidden_id_sites = $id;
         $admin_tags_sites_rating_desc = 1;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_sites', 'site_url_sites', 'hidden_id_sites', 'admin_tags_sites_rating_desc'));
-
- 
     }
 
     public function select_categories_sites_random($id)
     {
-
-
         $films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->inRandomOrder()
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags_sites')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('name', 'ASC')
-        ->select('site.*')
-        ->where('tags_sites.id', $id)
-        ->where('sites_tags.tag_db', 0)
-        ->distinct()
-        ->count();
+            ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags_sites.id')
+            ->join('site', 'site.id', '=', 'sites_tags.site_id')
+            ->inRandomOrder()
+            ->select('site.*')
+            ->where('tags_sites.id', $id)
+            ->where('sites_tags.tag_db', 0)
+            ->distinct()
+            ->paginate(27);
+        $count_films = $this->countSitesForTag('tags_sites', $id, 0);
 
         $site_url_sites = '1';
-
         $tags_another_sites = DB::table('tags_sites')->where('id', $id)->first();
-
         $hidden_id_sites = $id;
         $admin_tags_sites_random = 1;
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_sites', 'site_url_sites', 'hidden_id_sites', 'admin_tags_sites_random'));
-
- 
     }
     //============================================================================ END ============================================================ //
-
-
-
-
-
-
-
-
 
 
 
     // ============================ DISPLAY ALL FILMS WHERE TAGS, STARS, PRODUCTION HAVE THE SAME NAME AND TAG_DB = 1! ============================ //
     public function select_categories_sites_db_films($id)
     {
-
-
-        $films = DB::table('tags')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('name', 'ASC')
-        ->select('site.*')
-        ->where('tags.id', $id)
-        ->where('sites_tags.tag_db', 1)
-        ->distinct()
-        ->paginate(27);
-
-        $count_films = DB::table('tags')
-        ->join('sites_tags', 'sites_tags.tag_id', '=', 'tags.id')
-        ->join('site', 'site.id', '=', 'sites_tags.site_id')
-        ->orderBy('name', 'ASC')
-        ->select('site.*')
-        ->where('tags.id', $id)
-        ->where('sites_tags.tag_db', 1)
-        ->distinct()
-        ->count();
+        $films = $this->sitesForTagQuery('tags', $id, 1, 'name', 'ASC')->paginate(27);
+        $count_films = $this->countSitesForTag('tags', $id, 1);
 
         $site_url_sites = '1';
-
         $tags_another_sites = DB::table('tags')->where('id', $id)->first();
 
         return view('admin.tags.admin_select_categories', compact('films', 'count_films', 'tags_another_sites', 'site_url_sites'));
-
- 
     }
     //============================================================================ END ============================================================ //
 

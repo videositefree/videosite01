@@ -93,28 +93,3 @@ $(document).ready(function() {
   });
 
 });
-
-
-
-//UP BUTTON 
-var mybutton = document.getElementById("myBtn");
-
-window.onscroll = function() {scrollFunction()};
-
-function scrollFunction() {
-  if (document.body.scrollTop > 570 || document.documentElement.scrollTop > 570) {
-    mybutton.style.display = "block";
-  } else {
-    mybutton.style.display = "none";
-  }
-}
-
-function topFunction() {
-  document.body.scrollTop = 0;
-  document.documentElement.scrollTop = 0;
-}
-
-$('.toTop').on('click', function(event) {
-  event.preventDefault();
-  $('html, body').animate({ scrollTop: 0 }, 'slow');         
-});

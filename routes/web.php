@@ -861,11 +861,11 @@ Route::get('/admin_tags_stars', [AdminTagsStarsController::class, 'tags_stars'])
 
  Route::get('/open_main_folder_tags_stars', [AdminTagsStarsController::class, 'open_main_folder_tags_stars']);
 
- Route::get('/tags_id_asc_admin_stars_stars', [AdminTagsStarsController::class, 'tags_id_asc_stars']);
+ Route::get('/tags_id_asc_admin_stars_stars', [AdminTagsStarsController::class, 'tags_stars_id_asc']);
 
- Route::get('/tags_name_asc_admin_stars', [AdminTagsStarsController::class, 'tags_name_asc_stars']);
+ Route::get('/tags_name_asc_admin_stars', [AdminTagsStarsController::class, 'tags_stars_name_asc']);
 
- Route::get('/tags_name_desc_admin_stars', [AdminTagsStarsController::class, 'tags_name_desc_stars']);
+ Route::get('/tags_name_desc_admin_stars', [AdminTagsStarsController::class, 'tags_stars_name_desc']);
 
  // ================================================================= END ============================================================== //
 
@@ -980,11 +980,11 @@ Route::get('/admin_tags_studios', [AdminTagsStudiosController::class, 'tags_stud
 
  Route::get('/open_main_folder_tags_studios', [AdminTagsStudiosController::class, 'open_main_folder_tags_studios']);
 
- Route::get('/tags_id_asc_admin_studios_studios', [AdminTagsStudiosController::class, 'tags_id_asc_studios']);
+ Route::get('/tags_id_asc_admin_studios_studios', [AdminTagsStudiosController::class, 'tags_studios_id_asc']);
 
- Route::get('/tags_name_asc_admin_studios', [AdminTagsStudiosController::class, 'tags_name_asc_studios']);
+ Route::get('/tags_name_asc_admin_studios', [AdminTagsStudiosController::class, 'tags_studios_name_asc']);
 
- Route::get('/tags_name_desc_admin_studios', [AdminTagsStudiosController::class, 'tags_name_desc_studios']);
+ Route::get('/tags_name_desc_admin_studios', [AdminTagsStudiosController::class, 'tags_studios_name_desc']);
 
  // ================================================================= END ============================================================== //
 
@@ -1095,11 +1095,11 @@ Route::get('/admin_tags_sites', [AdminTagsSitesController::class, 'tags_sites'])
 
  Route::get('/open_main_folder_tags_sites', [AdminTagsSitesController::class, 'open_main_folder_tags_sites']);
 
- Route::get('/tags_id_asc_admin_sites_sites', [AdminTagsSitesController::class, 'tags_id_asc_sites']);
+ Route::get('/tags_id_asc_admin_sites_sites', [AdminTagsSitesController::class, 'tags_sites_id_asc']);
 
- Route::get('/tags_name_asc_admin_sites', [AdminTagsSitesController::class, 'tags_name_asc_sites']);
+ Route::get('/tags_name_asc_admin_sites', [AdminTagsSitesController::class, 'tags_sites_name_asc']);
 
- Route::get('/tags_name_desc_admin_sites', [AdminTagsSitesController::class, 'tags_name_desc_sites']);
+ Route::get('/tags_name_desc_admin_sites', [AdminTagsSitesController::class, 'tags_sites_name_desc']);
 
  // ================================================================= END ============================================================== //
 

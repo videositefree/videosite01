@@ -26,12 +26,97 @@ class AdminSitesController extends Controller
         $this->middleware('auth'); 
     }
 
+    // =========================================================================================================
+    // POMOCNICZE METODY
+    // =========================================================================================================
+
+    private function sitesSorted($orderColumn = 'id', $direction = 'DESC')
+    {
+        return DB::table('site')->orderBy($orderColumn, $direction)->paginate(27);
+    }
+
+    private function attachSiteTag($siteId, $tagId, $tagDb)
+    {
+        $exists = DB::table('sites_tags')
+            ->where('site_id', $siteId)
+            ->where('tag_id', $tagId)
+            ->where('tag_db', $tagDb)
+            ->exists();
+
+        if (!$exists) {
+            $pivot = new sites_tags;
+            $pivot->site_id = $siteId;
+            $pivot->tag_id = $tagId;
+            $pivot->tag_db = $tagDb;
+            $pivot->save();
+            return $pivot->id;
+        }
+        return null;
+    }
+
+    // $tagDb=0 -> tabela tags_sites (własne tagi stron), $tagDb=1 -> tabela tags (wspólna z filmami)
+    private function attachSiteTagsByName($siteId, $names, $tagDb)
+    {
+        $lastId = null;
+        if (empty($names)) {
+            return $lastId;
+        }
+        $table = $tagDb === 0 ? 'tags_sites' : 'tags';
+
+        foreach ($names as $name) {
+            $matches = DB::table($table)->where('name', '=', $name)->get();
+            foreach ($matches as $match) {
+                $id = $this->attachSiteTag($siteId, $match->id, $tagDb);
+                if ($id !== null) {
+                    $lastId = $id;
+                }
+            }
+        }
+        return $lastId;
+    }
+
+    private function renderSiteSearchCard($urlFilter, $urlEdit, $urlDelete, $count, $name, $description, $link)
+    {
+        return '
+            <div class="entity-col">
+                <div class="entity-card" style="cursor:default;">
+                    <a href="'.$urlFilter.'" style="display:block;">
+                        <div class="film_number_search" style="position:static; display:inline-flex; margin-bottom:8px;">
+                            <i class="fas fa-tag"></i>&nbsp;&nbsp;'.$count.'
+                        </div>
+                    </a>
+                    <div class="entity-card__body" style="-webkit-line-clamp: unset;">
+                        <a href="'.$link.'" target="_blank" style="color:var(--gold); text-decoration:none;"><b>'.htmlspecialchars($name).'</b></a>
+                        <p style="margin-top:6px; font-weight:400;">'.$description.'</p>
+                    </div>
+                </div>
+                <div class="jssearch" style="display:flex; gap:8px; margin-top:8px;">
+                    <a href="'.$urlEdit.'" class="btn btn-info">Edytuj</a>
+                    <a href="'.$urlDelete.'" class="btn btn-danger">Usuń</a>
+                </div>
+            </div>
+        ';
+    }
+
+    private function renderEmptySearchResult()
+    {
+        return '
+            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
+                <div class="alert alert-danger">
+                    <ul>
+                        Przepraszamy ale nie mamy tego czego szukasz :/
+                    </ul>
+                </div>
+            </div>
+        ';
+    }
+
     
    //============================================================== ADMIN TABLE SITE =========================================================== //
    public function site(){
 
-    $sites = DB::table('site')->orderBy('id', 'DESC')->paginate(27);
-    $all_sites = DB::table('site')->orderBy('id', 'DESC')->paginate(27);
+    $sites = $this->sitesSorted('id', 'DESC');
+    $all_sites = $sites;
     $count_sites = DB::table('site')->count();
     return view('admin.admin_site',compact('sites', 'count_sites', 'all_sites'));
 
@@ -43,8 +128,8 @@ class AdminSitesController extends Controller
 
     public function site_id_asc(){
 
-        $sites = DB::table('site')->orderBy('id', 'ASC')->paginate(27);
-        $all_sites = DB::table('site')->orderBy('id', 'ASC')->paginate(27);
+        $sites = $this->sitesSorted('id', 'ASC');
+        $all_sites = $sites;
         $count_sites = DB::table('site')->count();
         return view('admin.admin_site',compact('sites', 'count_sites', 'all_sites'));
         
@@ -53,8 +138,8 @@ class AdminSitesController extends Controller
 
     public function site_name_asc(){
 
-        $sites = DB::table('site')->orderBy('name', 'ASC')->paginate(27);
-        $all_sites = DB::table('site')->orderBy('name', 'ASC')->paginate(27);
+        $sites = $this->sitesSorted('name', 'ASC');
+        $all_sites = $sites;
         $count_sites = DB::table('site')->count();
         return view('admin.admin_site',compact('sites', 'count_sites', 'all_sites'));
         
@@ -63,8 +148,8 @@ class AdminSitesController extends Controller
 
     public function site_name_desc(){
 
-        $sites = DB::table('site')->orderBy('name', 'DESC')->paginate(27);
-        $all_sites = DB::table('site')->orderBy('name', 'DESC')->paginate(27);
+        $sites = $this->sitesSorted('name', 'DESC');
+        $all_sites = $sites;
         $count_sites = DB::table('site')->count();
         return view('admin.admin_site',compact('sites', 'count_sites', 'all_sites'));
         
@@ -73,8 +158,8 @@ class AdminSitesController extends Controller
 
     public function site_description_asc(){
 
-        $sites = DB::table('site')->orderBy('description', 'ASC')->paginate(27);
-        $all_sites = DB::table('site')->orderBy('description', 'ASC')->paginate(27);
+        $sites = $this->sitesSorted('description', 'ASC');
+        $all_sites = $sites;
         $count_sites = DB::table('site')->count();
         return view('admin.admin_site',compact('sites', 'count_sites', 'all_sites'));
         
@@ -83,8 +168,8 @@ class AdminSitesController extends Controller
 
     public function site_description_desc(){
 
-        $sites = DB::table('site')->orderBy('description', 'DESC')->paginate(27);
-        $all_sites = DB::table('site')->orderBy('description', 'DESC')->paginate(27);
+        $sites = $this->sitesSorted('description', 'DESC');
+        $all_sites = $sites;
         $count_sites = DB::table('site')->count();
         return view('admin.admin_site',compact('sites', 'count_sites', 'all_sites'));
         
@@ -93,8 +178,8 @@ class AdminSitesController extends Controller
 
     public function site_rating_asc(){
 
-        $sites = DB::table('site')->orderBy('rating', 'ASC')->paginate(27);
-        $all_sites = DB::table('site')->orderBy('rating', 'ASC')->paginate(27);
+        $sites = $this->sitesSorted('rating', 'ASC');
+        $all_sites = $sites;
         $count_sites = DB::table('site')->count();
         return view('admin.admin_site',compact('sites', 'count_sites', 'all_sites'));
         
@@ -103,8 +188,8 @@ class AdminSitesController extends Controller
 
     public function site_rating_desc(){
 
-        $sites = DB::table('site')->orderBy('rating', 'DESC')->paginate(27);
-        $all_sites = DB::table('site')->orderBy('rating', 'DESC')->paginate(27);
+        $sites = $this->sitesSorted('rating', 'DESC');
+        $all_sites = $sites;
         $count_sites = DB::table('site')->count();
         return view('admin.admin_site',compact('sites', 'count_sites', 'all_sites'));
         
@@ -182,95 +267,9 @@ class AdminSitesController extends Controller
         }
 
        
-        $multiTag = $request -> input('multiTag');
-        // add new tags for films 
-        if(!empty($multiTag))
-        {
-            foreach ($multiTag as $key=>$tag) 
-            {
-
-                $query = DB::table('tags_sites')
-                ->where('name', '=', $tag)
-                ->get();
-                
-                $tagscount = $query->count();
-
-                if($tagscount > 0) 
-                {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-
-                        $films_tags_db = DB::table('sites_tags')
-                        ->select('tag_id')
-                        ->where('site_id', $id_db)
-                        ->where('tag_id', $tag_id)
-                        ->where('tag_db', 0)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-
-                            $films_tags = new sites_tags;                            
-                            $films_tags->site_id = $id_db;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->tag_db = 0;
-                            $films_tags->save();
-                            $last_id_db = $films_tags->id;
-                        }
-                        
-                        
-                    }
-
-                    
-                }
-            }
-        }
-
-
-
-
-
-        $multiTagFilms = $request -> input('multiTagFilms');
-        // add new tags for films 
-        if(!empty($multiTagFilms))
-        {
-            foreach ($multiTagFilms as $key=>$tag) 
-            {
-
-                $query = DB::table('tags')
-                ->where('name', '=', $tag)
-                ->get();
-                
-                $tagscount = $query->count();
-
-                if($tagscount > 0) 
-                {
-                    foreach ($query as $tags) {
-                        $tag_id = $tags->id;
-
-                        $films_tags_db = DB::table('sites_tags')
-                        ->select('tag_id')
-                        ->where('site_id', $id_db)
-                        ->where('tag_id', $tag_id)
-                        ->where('tag_db', 1)
-                        ->get();
-
-                        if($films_tags_db->isEmpty()){
-
-                            $films_tags = new sites_tags;                            
-                            $films_tags->site_id = $id_db;
-                            $films_tags->tag_id = $tag_id;
-                            $films_tags->tag_db = 1;
-                            $films_tags->save();
-                            $last_id_db = $films_tags->id;
-                        }
-                        
-                        
-                    }
-
-                    
-                }
-            }
-        }
+        $tagResult1 = $this->attachSiteTagsByName($id_db, $request->input('multiTag'), 0);
+        $tagResult2 = $this->attachSiteTagsByName($id_db, $request->input('multiTagFilms'), 1);
+        $last_id_db = $tagResult1 ?? $tagResult2;
 
         
             
@@ -522,46 +521,15 @@ class AdminSitesController extends Controller
 
         $url = url('/edit_site',$id);
         $url_delete = url('/delete_files_from_admin_search_site',$id);
-        echo '
-        <div class="col-sm-3">
-        <div class=" m-2">
-            <div class="card video-wrapper" style="background-color: #666666;">
 
-            <a href="'.$url_films.'">
-            <div class="film_number_search">
-                <i class="fas fa-tag">&nbsp;&nbsp;'.$count_films.'</i>
-            </div>
-            </a>
-            
-                
-            <div class="card-body">
-                <p class="card-text"><a style="color: #cffd00; text-decoration: none;" href="'.$link.'" target="_blank"><b>'.$name.'</b></a></p><br>
-                '.$description.'
-            </div>
-
-            <a href="'.$url.'" class="btn btn-info" style="margin-bottom:5px;">Edytuj</a>
-            <a href="'.$url_delete.'" class="btn btn-danger">Usuń</a>
-            </div>
-            <div style="margin-bottom: 30px";</div>
-            
-        </div></div>
-        </div>
-        ';
+        echo $this->renderSiteSearchCard($url_films, $url, $url_delete, $count_films, $name, $description, $link);
         
         }
 
         }
         else
         {
-            echo '
-            <div class="col-sm-12 text-center" style="padding-top: 30px; padding-bottom: 30px">
-                <div class="alert alert-danger">
-                    <ul>
-                        Przepraszamy ale nie mamy tego czego szukasz :/
-                    </ul>
-                </div>
-            </div>
-            '; 
+            echo $this->renderEmptySearchResult();
         }
 
         

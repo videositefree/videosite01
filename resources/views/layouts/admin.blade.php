@@ -1,231 +1,258 @@
 <!doctype html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <head>
 
-    <!-- CSRF Token -->
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title')</title>
+        <title>@yield('title')</title>
 
-    <!-- Scripts -->
-    <script src="{{ asset('js/app.js') }}" ></script>
-    <script src="{{ asset('js/admin.blade.js') }}" defer></script> <!------- Script for all site ---------->
-    <script src="{{ asset('js/jquery-ui.js') }}" ></script><!------- Script for autocomplete ---------->
-    <script src="{{ asset('js/jquery.form.js') }}" defer></script><!------- Script for autocomplete ---------->  
-    <script src="{{ asset('js/bootstrap4-toggle.min.js') }}" defer></script><!------- Script for toggler edit_films_blade ---------->
+        <script src="{{ asset('js/app.js') }}"></script>
+        <script src="{{ asset('js/admin.blade.js') }}?v={{ @filemtime(public_path('js/admin.blade.js')) }}" defer></script>
+        <script src="{{ asset('js/marquee-preview.js') }}?v={{ @filemtime(public_path('js/marquee-preview.js')) }}" defer></script>
+        <script src="{{ asset('js/jquery-ui.js') }}"></script>
+        <script src="{{ asset('js/jquery.form.js') }}" defer></script>
+        <script src="{{ asset('js/bootstrap4-toggle.min.js') }}" defer></script>
 
+        <link href="{{ asset('css/jquery-ui.css') }}" rel="stylesheet">
+        <link href="{{ asset('css/fontawesome/css/all.css') }}" rel="stylesheet">
+        <link href="{{ asset('css/bootstrap4-toggle.min.css') }}" rel="stylesheet">
 
-    <!-- Fonts -->
-    <link rel="dns-prefetch" href="//fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
-    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+        <link href="{{ asset('css/app.css') }}" rel="stylesheet">
+        <link href="{{ asset('css/app.blade.css') }}?v={{ @filemtime(public_path('css/app.blade.css')) }}" rel="stylesheet"><!-- komponenty współdzielone: navbar, drawer, przyciski -->
+        <link href="{{ asset('css/admin.blade.css') }}?v={{ @filemtime(public_path('css/admin.blade.css')) }}" rel="stylesheet"><!-- specyfika panelu: tabele, formularze -->
+        <link href="{{ asset('css/star.css') }}?v={{ @filemtime(public_path('css/star.css')) }}" rel="stylesheet">
 
+        <link rel="shortcut icon" href="#">
 
-    <!-- Styles -->
-    <link href="{{ asset('css/app.css') }}" rel="stylesheet">
-    <link href="{{ asset('css/admin.blade.css') }}" rel="stylesheet">
-    <link href="{{ asset('css/fontawesome/css/all.css') }}" rel="stylesheet">
-    <link href="{{ asset('css/jquery-ui.css') }}" rel="stylesheet"><!------- style for autocomplete ---------->
-    <link href="{{ asset('css/bootstrap4-toggle.min.css') }}" rel="stylesheet"><!------- style for toggler edit_films_blade ---------->
+    </head>
 
-    <!-- Delete error favicon.ico -->
-    <link rel="shortcut icon" href="#">
-    
-</head>
-<body class="body" >     
+    <body class="body">
 
-    <nav class="navbar navbar-expand-xl sticky-top navbar-dark">
-        <div class="site-name tw" >Panel Administracyjny</div>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-            <ul class="navbar-nav mr-auto ">
+        <a href="#mq-content" class="skip-link">Przejdź do treści</a>
 
+        <!-- ============ NAVBAR ============ -->
+        <header class="marquee-nav">
+            <div class="marquee-nav__bar">
 
-            <li class="dropdown open" style="padding-left: 5px;">
-                <a href="#" class="dropdown-toggle fas fa-cog" data-toggle="dropdown"> Ustawienia</a>
-                <ul class="dropdown-menu login-menu-dropdown" role="menu">
+                <button type="button" class="hamburger-btn" id="mq-hamburger" aria-label="Otwórz menu" aria-expanded="false" aria-controls="mq-drawer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
 
-                    <a class="dropdown-item" href="{{ url('/admin_index') }}" id="drop_down_id">Szczegóły</a>
+                <span class="marquee-nav__brand">Panel Administracyjny</span>
 
-                    <a class="dropdown-item" href="{{ url('/admin_database_copy') }}" id="drop_down_id"> Baza Danych</a>
+                <ul class="marquee-nav__links">
 
-                    <a class="dropdown-item" href="{{url('/admin_folder_copy')}}" id="drop_down_id"> Kopia Folderów</a>
+                    <li class="nav-dd {{ request()->is('admin_index') || request()->is('admin_database_copy') || request()->is('admin_folder_copy') || request()->is('operation_database') || request()->is('absence_films') || request()->is('absence_files_films') || request()->is('unique_tags') || request()->is('admin_help') ? 'active' : '' }}">
+                        <a href="#" aria-haspopup="true">
+                            Ustawienia
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                        </a>
+                        <div class="nav-dd__panel">
+                            <div class="nav-dd__panel-inner">
+                                <a href="{{ url('/admin_index') }}">Szczegóły</a>
+                                <a href="{{ url('/admin_database_copy') }}">Baza Danych</a>
+                                <a href="{{ url('/admin_folder_copy') }}">Kopia Folderów</a>
+                                <a href="{{ url('/operation_database') }}">Operacje na bazie danych</a>
+                                <a href="{{ url('/absence_films') }}">Braki w plikach</a>
+                                <a href="{{ url('/absence_files_films') }}">Braki w bazie danych</a>
+                                <a href="{{ url('/unique_tags') }}">Duplikaty</a>
+                                <a href="{{ url('/admin_help') }}">Pomoc</a>
+                            </div>
+                        </div>
+                    </li>
 
-                    <a class="dropdown-item" href="{{url('/operation_database')}}" id="drop_down_id">Operacje na bazie danych</a>
+                    <li class="{{ request()->is('admin_films*') ? 'active' : '' }}"><a href="{{ url('/admin_films') }}">Filmy</a></li>
 
-                    <a class="dropdown-item" href="{{url('/absence_films')}}" id="drop_down_id">Braki w plikach</a>
+                    <li class="nav-dd {{ request()->is('admin_tags*') ? 'active' : '' }}">
+                        <a href="#" aria-haspopup="true">
+                            Tagi
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                        </a>
+                        <div class="nav-dd__panel">
+                            <div class="nav-dd__panel-inner">
+                                <a href="{{ url('/admin_tags') }}">Tagi Filmów</a>
+                                <a href="{{ url('/admin_tags_stars') }}">Tagi Gwiazd</a>
+                                <a href="{{ url('/admin_tags_studios') }}">Tagi Wytwórnii</a>
+                                <a href="{{ url('/admin_tags_sites') }}">Tagi Stron</a>
+                            </div>
+                        </div>
+                    </li>
 
-                    <a class="dropdown-item" href="{{url('/absence_files_films')}}" id="drop_down_id">Braki w bazie danych</a>
+                    <li class="{{ request()->is('admin_stars*') ? 'active' : '' }}"><a href="{{ url('/admin_stars') }}">Gwiazdy</a></li>
+                    <li class="{{ request()->is('admin_studios*') ? 'active' : '' }}"><a href="{{ url('/admin_studios') }}">Wytwórnie</a></li>
+                    <li class="{{ request()->is('admin_sites*') ? 'active' : '' }}"><a href="{{ url('/admin_sites') }}">Strony</a></li>
 
-                    <a class="dropdown-item" href="{{url('/unique_tags')}}" id="drop_down_id">Duplikaty</a>
-
-                    <a class="dropdown-item" href="{{ url('/admin_help') }}" id="drop_down_id">Pomoc</a>
-
-                </ul>
-            </li>
-
-
-           
-
-
-          <li><a href="{{url('/admin_films')}}" class="fas fa-film"> Filmy</a></li>
-
-
-          <li class="dropdown open" style="padding-left: 5px;">
-                <a href="#" class="dropdown-toggle fas fa-tags" data-toggle="dropdown"> Tagi</a>
-                <ul class="dropdown-menu login-menu-dropdown" role="menu">
-
-                    <a class="dropdown-item" href="{{ url('/admin_tags') }}" id="drop_down_id"> Tagi Filmów</a>
-
-                    <a class="dropdown-item" href="{{ url('/admin_tags_stars') }}" id="drop_down_id"> Tagi Gwiazd</a>
-                    
-                    <a class="dropdown-item" href="{{url('/admin_tags_studios')}}" id="drop_down_id"> Tagi Wytwórnii</a>
-
-                    <a class="dropdown-item" href="{{url('/admin_tags_sites')}}" id="drop_down_id"> Tagi Stron</a>
-
-                   
-                   
-                    
-
-                </ul>
-            </li>
-
-          <li><a href="{{ url('/admin_stars') }}" class="fas fa-star"> Gwiazdy</a></li>
-
-          <li><a href="{{ url('/admin_studios') }}" class="fas fa-folder"> Wytwórnie</a></li>
-          <li><a href="{{ url('/admin_sites') }}" class="fas fa-list-alt"> Strony</a></li>
-
-
-          <li class="dropdown open" style="padding-left: 5px;">
-                <a href="#" class="dropdown-toggle fas fa-toolbox" data-toggle="dropdown"> Video</a>
-                <ul class="dropdown-menu login-menu-dropdown" role="menu">
-
-                    <a class="dropdown-item" href="{{url('/cut_films')}}" id="drop_down_id"> Wytnij fragment filmu</a>
-
-                    <a class="dropdown-item" href="{{url('/join_films')}}" id="drop_down_id"> Połącz fragment filmu</a>
-
-                    <a class="dropdown-item" href="{{url('/cut_image')}}" id="drop_down_id"> Wytnij miniaturę z filmu</a>
-                    
-                    <a class="dropdown-item" href="{{url('/simply_conversion')}}" id="drop_down_id">Zmiana rozszerzenia</a>
-
-                    <a class="dropdown-item" href="{{url('/conversion')}}" id="drop_down_id">Konwersja filmu</a>
-
-                   
-                   
-                    
+                    <li class="nav-dd {{ request()->is('cut_films') || request()->is('join_films') || request()->is('cut_image') || request()->is('simply_conversion') || request()->is('conversion') ? 'active' : '' }}">
+                        <a href="#" aria-haspopup="true">
+                            Video
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                        </a>
+                        <div class="nav-dd__panel">
+                            <div class="nav-dd__panel-inner">
+                                <a href="{{ url('/cut_films') }}">Wytnij fragment filmu</a>
+                                <a href="{{ url('/join_films') }}">Połącz fragment filmu</a>
+                                <a href="{{ url('/cut_image') }}">Wytnij miniaturę z filmu</a>
+                                <a href="{{ url('/simply_conversion') }}">Zmiana rozszerzenia</a>
+                                <a href="{{ url('/conversion') }}">Konwersja filmu</a>
+                            </div>
+                        </div>
+                    </li>
 
                 </ul>
-            </li>
-        
 
+                <div class="marquee-nav__spacer"></div>
 
-          </ul>
+                <div class="marquee-nav__actions">
 
-            
-            <ul class="nav navbar-nav navbar-right">
-    
-   
-    
-                  <li class="dropdown open" style="padding-left: 5px;">
-                    <a href="#" class="dropdown-toggle fas fa-user" data-toggle="dropdown"></a>
-                    <ul class="dropdown-menu login-menu-dropdown" role="menu">
-                        @guest
-                                <a class="dropdown-item" href="{{ route('login') }}" id="drop_down_id">{{ __('Login') }}</a>
-                                
-                        @if (Route::has('register'))
-                                    
-                            <a class="dropdown-item" href="{{ route('register') }}" id="drop_down_id">{{ __('Register') }}</a>
-                                    
-                        @endif
-                        @else
-
-                            <a class="dropdown-item" href="{{url('/')}}" id="drop_down_id">
-                                Strona Główna <span class="caret"></span>
-                            </a>
-
-                            <a class="dropdown-item" href="{{ route('logout') }}"
-                                onclick="event.preventDefault();
-                                document.getElementById('logout-form').submit();" id="drop_down_id">
-                                {{ __('Wyloguj się') }}
-                            </a>
-
-                            <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;" id="drop_down_id">
-                                @csrf
-                            </form>
-
-                        @endguest
-            
-                    </ul>
-                  </li>
-                  <li>
-                    <div id="dark-switch" class="custom-control custom-switch tw mode-switch" style="color: white !important; padding-top: 27px; padding-left: 45px;">
-                      <input type="checkbox" class="custom-control-input"  id="darkSwitch">
-                      <label class="custom-control-label" for="darkSwitch">Dark Mode</label>
+                    <div class="nav-icon-btn desktop-only" style="width:auto;">
+                        <div class="custom-control custom-switch mode-switch" style="display:flex; align-items:center;">
+                            <input type="checkbox" class="custom-control-input" id="darkSwitch">
+                            <label class="custom-control-label" for="darkSwitch" style="margin-bottom:0;">Dark</label>
+                        </div>
                     </div>
-                  </li>
+
+                    <div class="nav-dd desktop-only">
+                        <button type="button" class="nav-icon-btn" aria-haspopup="true" aria-label="Konto">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                        </button>
+                        <div class="nav-dd__panel">
+                            <div class="nav-dd__panel-inner">
+                                @guest
+                                    <a href="{{ route('login') }}">{{ __('Login') }}</a>
+                                    @if (Route::has('register'))
+                                        <a href="{{ route('register') }}">{{ __('Register') }}</a>
+                                    @endif
+                                @else
+                                    <a href="{{ url('/') }}">Strona Główna</a>
+                                    <a href="{{ route('logout') }}"
+                                       onclick="event.preventDefault(); document.getElementById('logout-form').submit();">{{ __('Wyloguj się') }}</a>
+                                    <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
+                                @endguest
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
+            </div>
+        </header>
+
+        <!-- ============ DRAWER (mobile nav) ============ -->
+        <div class="drawer-backdrop" id="mq-drawer-backdrop"></div>
+        <nav class="drawer" id="mq-drawer" aria-hidden="true" aria-label="Menu admina">
+            <div class="drawer__head">
+                <span class="marquee-nav__brand" style="font-size:20px;">Panel Admina</span>
+                <button type="button" class="drawer__close" id="mq-drawer-close" aria-label="Zamknij menu">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <ul class="drawer__nav">
+
+                <li class="drawer__accordion">
+                    <button type="button" class="drawer__accordion-btn" aria-expanded="false">
+                        Ustawienia
+                        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <div class="drawer__accordion-panel">
+                        <a href="{{ url('/admin_index') }}">Szczegóły</a>
+                        <a href="{{ url('/admin_database_copy') }}">Baza Danych</a>
+                        <a href="{{ url('/admin_folder_copy') }}">Kopia Folderów</a>
+                        <a href="{{ url('/operation_database') }}">Operacje na bazie danych</a>
+                        <a href="{{ url('/absence_films') }}">Braki w plikach</a>
+                        <a href="{{ url('/absence_files_films') }}">Braki w bazie danych</a>
+                        <a href="{{ url('/unique_tags') }}">Duplikaty</a>
+                        <a href="{{ url('/admin_help') }}">Pomoc</a>
+                    </div>
+                </li>
+
+                <li class="{{ request()->is('admin_films*') ? 'active' : '' }}"><a href="{{ url('/admin_films') }}">Filmy</a></li>
+
+                <li class="drawer__accordion">
+                    <button type="button" class="drawer__accordion-btn" aria-expanded="false">
+                        Tagi
+                        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <div class="drawer__accordion-panel">
+                        <a href="{{ url('/admin_tags') }}">Tagi Filmów</a>
+                        <a href="{{ url('/admin_tags_stars') }}">Tagi Gwiazd</a>
+                        <a href="{{ url('/admin_tags_studios') }}">Tagi Wytwórnii</a>
+                        <a href="{{ url('/admin_tags_sites') }}">Tagi Stron</a>
+                    </div>
+                </li>
+
+                <li class="{{ request()->is('admin_stars*') ? 'active' : '' }}"><a href="{{ url('/admin_stars') }}">Gwiazdy</a></li>
+                <li class="{{ request()->is('admin_studios*') ? 'active' : '' }}"><a href="{{ url('/admin_studios') }}">Wytwórnie</a></li>
+                <li class="{{ request()->is('admin_sites*') ? 'active' : '' }}"><a href="{{ url('/admin_sites') }}">Strony</a></li>
+
+                <li class="drawer__accordion">
+                    <button type="button" class="drawer__accordion-btn" aria-expanded="false">
+                        Video
+                        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <div class="drawer__accordion-panel">
+                        <a href="{{ url('/cut_films') }}">Wytnij fragment filmu</a>
+                        <a href="{{ url('/join_films') }}">Połącz fragment filmu</a>
+                        <a href="{{ url('/cut_image') }}">Wytnij miniaturę z filmu</a>
+                        <a href="{{ url('/simply_conversion') }}">Zmiana rozszerzenia</a>
+                        <a href="{{ url('/conversion') }}">Konwersja filmu</a>
+                    </div>
+                </li>
+
             </ul>
-    </nav>
 
+            <div class="drawer__foot">
+                <div class="custom-control custom-switch mode-switch">
+                    <input type="checkbox" class="custom-control-input" id="darkSwitchMobile">
+                    <label class="custom-control-label" for="darkSwitchMobile">Tryb ciemny</label>
+                </div>
 
+                @guest
+                    <a href="{{ route('login') }}" class="btn btn-success" style="text-align:center;">{{ __('Login') }}</a>
+                @else
+                    <a href="{{ url('/') }}" class="btn btn-info" style="text-align:center;">Strona Główna</a>
+                    <a href="#" class="btn btn-delete" style="text-align:center;"
+                       onclick="event.preventDefault(); document.getElementById('logout-form-m').submit();">{{ __('Wyloguj się') }}</a>
+                    <form id="logout-form-m" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
+                @endguest
+            </div>
+        </nav>
 
-   
-          
-        <div class="baner col-sm-12"><!-- <img src="{{ asset('icon/app.blade/baner.png') }}" class="img-fluid"> --></div>
-   
+        <div class="baner col-sm-12"></div>
 
-        <div class="container content col-xl-10" style="padding-top: 20px;">
-        
-        <div class="col-sm-3 col-lg-3"></div>
+        <!-- ============ CONTENT ============ -->
+        <main id="mq-content" class="content">
+            <div class="wrap">
 
-        <!-- Filtr database -->
-            <div class="d-flex justify-content-center"> @yield('filtr_text')</div>
-            <div class=" d-flex justify-content-center" >@yield('filtr_link')</div>
-            <div class=" d-flex justify-content-center" >@yield('filtr2_link')</div>
-        <!-- END -->
+                <div class="d-flex justify-content-center">@yield('filtr_text')</div>
+                <div class="d-flex justify-content-center">@yield('filtr_link')</div>
+                <div class="d-flex justify-content-center">@yield('filtr2_link')</div>
 
-        
-       
+                <nav class="col-sm-12" aria-label="breadcrumb">
+                    @yield('direction')
+                </nav>
 
-        <!-- Display all content -->
-            <div class="row ">
+                @if ($__env->hasSection('extra_content'))
+                <div class="extra-toolbar">@yield('extra_content')</div>
+                @endif
 
-            <nav class="col-sm-12" aria-label="breadcrumb">
-                @yield('direction')
-            </nav>
-                
-                <!-- filtr database in table -->
-                    <div class="col-sm-4" style="padding-bottom: 5px;"> @yield('extra_content')</div>
-                    <div style="width: 100%; padding-bottom: 5px;">@yield('extra_content2')</div>
-                <!-- END -->
-
-
+                @yield('extra_content2')
 
                 @yield('content')
-                
 
             </div>
-        <!-- END -->
-    </div>
+        </main>
 
+        <div class="page">
+            <div class="wrap">
+                @yield('pagi')
+            </div>
+        </div>
 
+        <button onclick="topFunction()" id="myBtn" title="Do góry" aria-label="Przewiń do góry">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="19" x2="12" y2="5"/><path d="M5 12l7-7 7 7"/></svg>
+        </button>
 
-    
-  
-
-  <div class="page d-flex justify-content-center">
-      
-  @yield('pagi')
-
-  </div>
-
-
- 
- 
- 
-</body>
+    </body>
 </html>

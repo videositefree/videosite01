@@ -36,6 +36,31 @@ function btn_stick_2() {
 }
 </script>
 
+<style>
+.upload-progressbar-wrap { margin: 4px 0 18px; }
+.upload-progressbar-track { background:#e9ecef; border-radius:999px; height:10px; overflow:hidden; }
+.upload-progressbar-fill { background:#28a745; height:100%; width:0%; transition:width .25s ease; }
+.upload-progressbar-label { text-align:right; font-size:12px; color:#6c757d; margin-top:4px; }
+
+.upload-stage-list { list-style:none; padding:0; margin:0 auto 14px; text-align:left; display:inline-block; }
+.upload-stage-list li { display:flex; align-items:center; gap:10px; padding:6px 0; color:#adb5bd; font-size:14px; }
+.upload-stage-list li .upload-stage-check {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:22px; height:22px; border-radius:50%; border:2px solid #dee2e6;
+  font-size:12px; flex-shrink:0;
+}
+.upload-stage-list li.is-active { color:#212529; font-weight:600; }
+.upload-stage-list li.is-active .upload-stage-check { border-color:#28a745; color:#28a745; }
+.upload-stage-list li.is-done { color:#28a745; }
+.upload-stage-list li.is-done .upload-stage-check { background:#28a745; border-color:#28a745; color:#fff; }
+.upload-stage-list li.is-done .upload-stage-check::after { content:"\2713"; }
+
+.upload-error-box {
+  margin-top:10px; padding:10px 14px; border-radius:6px;
+  background:#f8d7da; color:#842029; font-size:14px; text-align:left;
+}
+</style>
+
 <div class="upload-page">
 
     <div class="col-sm-12 text-center">
@@ -304,17 +329,7 @@ function btn_stick_2() {
     </div>
 </div>
 
-<script>
-  $('#submit').click(function(){
-    if($('#film_name').val() !== '' && $('#film').val() !== ''){
-      $('#div2').modal();
-      $('#div2').modal('toggle');
-      $('#div2').modal('show');
-    }
-  });
-</script>
-
-<div class="modal fade" id="div2" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="false">
+<div class="modal fade" id="div2" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="false" data-backdrop="static" data-keyboard="false">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content modtext">
             <div class="modal-header">
@@ -323,11 +338,34 @@ function btn_stick_2() {
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body row justify-content-center text-center"></div>
-            <tw>Prosimy o chwilę cierpliwości.<br>
-                Strona zostanie automatycznie odświeżona po przesłaniu pliku i stworzeniu zwiastunu filmowego.</tw><br>
-            <div class="form-group">
-                <img src="{{ asset('icon/app.blade/reload.gif') }}" style="width: 70px; height: 70px;">
+            <div class="modal-body row justify-content-center text-center">
+                <div style="width:100%;">
+
+                    <div class="upload-progressbar-wrap">
+                        <div class="upload-progressbar-track">
+                            <div class="upload-progressbar-fill" id="uploadProgressFill"></div>
+                        </div>
+                        <div class="upload-progressbar-label" id="uploadProgressLabel">0%</div>
+                    </div>
+
+                    <ul class="upload-stage-list" id="uploadStageList">
+                        <li data-stage="uploading"><span class="upload-stage-check"></span> Przesyłanie pliku</li>
+                        <li data-stage="tags"><span class="upload-stage-check"></span> Zapisywanie tagów, gwiazd i wytwórni</li>
+                        <li data-stage="trailer"><span class="upload-stage-check"></span> Tworzenie zwiastunu</li>
+                        <li data-stage="thumbnail"><span class="upload-stage-check"></span> Generowanie miniatury</li>
+                        <li data-stage="done"><span class="upload-stage-check"></span> Gotowe!</li>
+                    </ul>
+
+                    <div class="upload-error-box" id="uploadErrorBox" style="display:none;"></div>
+
+                    <tw>Prosimy o chwilę cierpliwości.<br>
+                        Po zakończeniu przetwarzania zostaniesz przeniesiony do edycji filmu.</tw><br>
+
+                    <div class="form-group" id="uploadSpinner">
+                        <img src="{{ asset('icon/app.blade/reload.gif') }}" style="width: 70px; height: 70px;">
+                    </div>
+
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -335,6 +373,141 @@ function btn_stick_2() {
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    var form = document.getElementById('add_films');
+    var progressFill = document.getElementById('uploadProgressFill');
+    var progressLabel = document.getElementById('uploadProgressLabel');
+    var stageList = document.getElementById('uploadStageList');
+    var errorBox = document.getElementById('uploadErrorBox');
+    var spinner = document.getElementById('uploadSpinner');
+    var pollTimer = null;
+
+    // kolejność kroków pokazywanych w modalu
+    var stageOrder = ['uploading', 'tags', 'trailer', 'thumbnail', 'done'];
+
+    // mapowanie wartości "stage" z tabeli upload_progress (patrz ProcessFilmUpload::setStage)
+    // na kroki widoczne w interfejsie
+    var backendStageMap = {
+        'queued': 'uploading',
+        'tags': 'tags',
+        'trailer': 'trailer',
+        'thumbnail': 'thumbnail',
+        'done': 'done'
+    };
+
+    function setActiveStage(stageKey) {
+        var reachedIndex = stageOrder.indexOf(stageKey);
+        var items = stageList.querySelectorAll('li');
+        for (var i = 0; i < items.length; i++) {
+            var li = items[i];
+            var liIndex = stageOrder.indexOf(li.getAttribute('data-stage'));
+            li.classList.remove('is-active', 'is-done');
+            if (liIndex < reachedIndex) {
+                li.classList.add('is-done');
+            } else if (liIndex === reachedIndex) {
+                li.classList.add('is-active');
+            }
+        }
+    }
+
+    function showError(message) {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        if (spinner) { spinner.style.display = 'none'; }
+        errorBox.style.display = 'block';
+        errorBox.textContent = message || 'Wystąpił nieoczekiwany błąd podczas przetwarzania filmu.';
+    }
+
+    function pollStatus(token, filmId) {
+        pollTimer = setInterval(function () {
+            fetch('{{ url('/add_films_status') }}/' + token, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function (res) {
+                if (!res.ok) { throw new Error('status_' + res.status); }
+                return res.json();
+            })
+            .then(function (data) {
+                if (data.stage === 'error') {
+                    showError(data.message);
+                    return;
+                }
+
+                var uiStage = backendStageMap[data.stage] || 'uploading';
+                setActiveStage(uiStage);
+
+                if (data.stage === 'done') {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                    if (spinner) { spinner.style.display = 'none'; }
+                    setTimeout(function () {
+                        window.location.href = '{{ url('/edit_films') }}/' + filmId;
+                    }, 1200);
+                }
+            })
+            .catch(function () {
+                // pojedynczy nieudany odczyt statusu nie przerywa procesu, spróbujemy ponownie za 1,5s
+            });
+        }, 1500);
+    }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        var filmName = document.getElementById('film_name').value;
+        var fileInput = document.getElementById('film');
+
+        if (filmName === '' || fileInput.value === '') {
+            return;
+        }
+
+        errorBox.style.display = 'none';
+        errorBox.textContent = '';
+        progressFill.style.width = '0%';
+        progressLabel.textContent = '0%';
+        if (spinner) { spinner.style.display = ''; }
+        setActiveStage('uploading');
+
+        $('#div2').modal('show');
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', form.getAttribute('action'), true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.upload.addEventListener('progress', function (evt) {
+            if (evt.lengthComputable) {
+                var pct = Math.round((evt.loaded / evt.total) * 100);
+                progressFill.style.width = pct + '%';
+                progressLabel.textContent = pct + '%';
+            }
+        });
+
+        xhr.onload = function () {
+            var response = null;
+            try { response = JSON.parse(xhr.responseText); } catch (err) { response = null; }
+
+            if (xhr.status === 200 && response && response.token) {
+                progressFill.style.width = '100%';
+                progressLabel.textContent = '100%';
+                pollStatus(response.token, response.film_id);
+            } else if (xhr.status === 422 && response && response.errors) {
+                var keys = Object.keys(response.errors);
+                var firstError = keys.length ? response.errors[keys[0]] : null;
+                showError(Array.isArray(firstError) ? firstError[0] : firstError);
+            } else {
+                showError('Nie udało się wysłać pliku na serwer.');
+            }
+        };
+
+        xhr.onerror = function () {
+            showError('Błąd połączenia podczas wysyłania pliku.');
+        };
+
+        xhr.send(new FormData(form));
+    });
+})();
+</script>
 
 <!-- autocomplete: tagi -->
 <script>

@@ -357,6 +357,8 @@ Route::get('/add_films', [UploadFilesController::class, 'add_films']);
 
 Route::post('/add_films_save', [UploadFilesController::class, 'save']);
 
+Route::get('/add_films_status/{token}', [UploadFilesController::class, 'uploadStatus']);
+
 // ===================================================================== END =============================================================== //
 
 

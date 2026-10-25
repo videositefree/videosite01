@@ -14,6 +14,8 @@ use App\films;
 
 use App\stars_tags;
 
+use App\Support\FilmSort;
+
 class FilmsController extends Controller
 {
 
@@ -231,14 +233,12 @@ class FilmsController extends Controller
 
         // ========================================================== END ===================================================================== //
 
-        $films = $this->activeFilmsQuery()->orderBy('created_at', 'DESC')->paginate(27);
+        $films = FilmSort::paginate(FilmSort::apply($this->activeFilmsQuery()));
 
         $count_films = DB::table('films')->count();
         $films_check = 1; // display filtr sort
 
-        $index = 1;
-
-        return view('sites.index', compact('films', 'count_films', 'films_check', 'index'));
+        return view('sites.index', compact('films', 'count_films', 'films_check'));
 
     }
 
@@ -318,17 +318,97 @@ class FilmsController extends Controller
     }
 
 
-    public function index_random_film_watch()
+    public function index_random_film_watch(Request $request)
     {
-        $film = $this->activeFilmsQuery()->select('id')->limit(1)->first();
+        // Wcześniej było tu ->limit(1)->first() bez żadnego sortowania, więc
+        // zawsze wracał ten sam (pierwszy) film. Teraz prawdziwe losowanie.
+        // Bez distinct() - w trybie ONLY_FULL_GROUP_BY MySQL nie pozwala łączyć
+        // DISTINCT z ORDER BY RAND().
+        $base = DB::table('films')->where('activ', '=', '1');
 
-        // brak aktywnych filmów w bazie — wcześniej ta sytuacja zostawiała
-        // $id nieustawione i redirect()->route('watch', $id) wywalał błąd
-        if (!$film) {
+        if ((clone $base)->count() === 0) {
             return redirect('/')->with('error', 'Brak dostępnych filmów.');
         }
 
-        return redirect()->route('watch', $film->id);
+        // nie losujemy ponownie filmu, który właśnie oglądasz / który wylosowaliśmy ostatnio
+        $exclude = array_filter([
+            (int) $request->query('from'),
+            (int) session('last_random_film'),
+        ]);
+
+        $query = clone $base;
+        if (count($exclude) > 0 && (clone $base)->whereNotIn('id', $exclude)->exists()) {
+            $query->whereNotIn('id', $exclude);
+        }
+
+        $film = $query->inRandomOrder()->select('id')->first();
+
+        session(['last_random_film' => $film->id]);
+
+        return redirect()->route('watch', $film->id)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
+
+    // ==================================================================== VOTES (kciuk w górę / w dół) ================================ //
+    // Bez logowania. Głos trzymamy w bazie (film_votes) i w sesji. Nowa przeglądarka
+    // = nowa sesja = można zagłosować ponownie. Ponowne kliknięcie tego samego
+    // przycisku cofa głos, kliknięcie drugiego zmienia głos.
+
+    private function voteCounts($filmId)
+    {
+        $row = DB::table('film_votes')
+            ->where('film_id', $filmId)
+            ->selectRaw('SUM(vote = 1) as up, SUM(vote = -1) as down')
+            ->first();
+
+        return [
+            'up' => (int) ($row->up ?? 0),
+            'down' => (int) ($row->down ?? 0),
+        ];
+    }
+
+    public function vote(Request $request, $id)
+    {
+        if (!DB::table('films')->where('id', $id)->exists()) {
+            return response()->json(['error' => 'Brak filmu.'], 404);
+        }
+
+        $direction = $request->input('vote');
+        if (!in_array($direction, ['up', 'down'], true)) {
+            return response()->json(['error' => 'Niepoprawny głos.'], 422);
+        }
+        $value = $direction === 'up' ? 1 : -1;
+
+        $sessionId = session()->getId();
+        $votes = session('film_votes', []);
+        $current = $votes[$id] ?? 0;
+
+        if ($current === $value) {
+            // ten sam przycisk drugi raz = cofnięcie głosu
+            DB::table('film_votes')->where('film_id', $id)->where('session_id', $sessionId)->delete();
+            unset($votes[$id]);
+            $mine = 0;
+        } else {
+            $exists = DB::table('film_votes')->where('film_id', $id)->where('session_id', $sessionId)->exists();
+            if ($exists) {
+                DB::table('film_votes')->where('film_id', $id)->where('session_id', $sessionId)
+                    ->update(['vote' => $value, 'updated_at' => now()]);
+            } else {
+                DB::table('film_votes')->insert([
+                    'film_id' => $id,
+                    'session_id' => $sessionId,
+                    'vote' => $value,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+            $votes[$id] = $value;
+            $mine = $value;
+        }
+
+        session(['film_votes' => $votes]);
+
+        return response()->json($this->voteCounts($id) + ['mine' => $mine]);
     }
 
     // ==================================================================== END =========================================================== //
@@ -412,7 +492,12 @@ class FilmsController extends Controller
         }
 
 
-        return view('sites.watch', compact('films', 'tags', 'stars', 'stars_tags', 'studios', 'studios_tags'));
+        $votes = $this->voteCounts($id);
+        $my_vote = (int) (session('film_votes', [])[$id] ?? 0);
+
+        $related = \App\Support\RelatedFilms::for($films);
+
+        return view('sites.watch', compact('films', 'tags', 'stars', 'stars_tags', 'studios', 'studios_tags', 'votes', 'my_vote', 'related'));
 
     }
     // ==================================================================== END =========================================================== //
@@ -424,13 +509,11 @@ class FilmsController extends Controller
     {
         $hidden_id_tags = $id;
 
-        $films = $this->tagFilmsQuery($id)->orderBy('created_at', 'DESC')->paginate(27);
+        $films = FilmSort::paginate(FilmSort::apply($this->tagFilmsQuery($id)));
         $count_films = $this->tagFilmsQuery($id)->count();
         $tags = DB::table('tags')->where('id', $id)->first();
 
-        $select_cat_new = 0;
-
-        return view('sites.index', compact('films', 'count_films', 'tags', 'hidden_id_tags', 'select_cat_new'));
+        return view('sites.index', compact('films', 'count_films', 'tags', 'hidden_id_tags'));
     }
 
     // =============================================================== FILTRS ===================================================================
@@ -519,15 +602,14 @@ class FilmsController extends Controller
 
     public function select_stars($id)
     {
-        $films = $this->starFilmsQuery($id)->orderBy('created_at', 'DESC')->paginate(27);
+        $films = FilmSort::paginate(FilmSort::apply($this->starFilmsQuery($id)));
         $count_films = $this->starFilmsQuery($id)->count();
         $extra = $this->starExtras($id);
 
         $hidden_id_stars = $id;
-        $select_star_new = 0;
 
         return view('sites.index', compact(
-            'films', 'count_films', 'hidden_id_stars', 'select_star_new'
+            'films', 'count_films', 'hidden_id_stars'
         ) + $extra);
     }
 
@@ -625,15 +707,14 @@ class FilmsController extends Controller
 
     public function select_studios($id)
     {
-        $films = $this->studioFilmsQuery($id)->orderBy('created_at', 'DESC')->paginate(27);
+        $films = FilmSort::paginate(FilmSort::apply($this->studioFilmsQuery($id)));
         $count_films = $this->studioFilmsQuery($id)->count();
         $extra = $this->studioExtras($id);
 
         $hidden_id_studios = $id;
-        $select_studio_new = 0;
 
         return view('sites.index', compact(
-            'films', 'count_films', 'hidden_id_studios', 'select_studio_new'
+            'films', 'count_films', 'hidden_id_studios'
         ) + $extra);
     }
 

@@ -64,23 +64,79 @@ class ProcessFilmUpload implements ShouldQueue
 
     public function handle()
     {
+        $warnings = [];
+
         try {
+            // czas trwania filmu - bez tego na stronie filmu pokazuje się 00:00:01
+            $this->saveDuration();
+
             $this->setStage('tags', 'Zapisywanie tagów, gwiazd i wytwórni...');
             $this->attachTagsByName($this->filmId, $this->tagNames);
             $this->attachStarsByName($this->filmId, $this->starNames, $this->inheritStarTags);
             $this->attachStudiosByName($this->filmId, $this->studioNames, $this->inheritStudioTags);
-
-            $this->setStage('trailer', 'Tworzenie zwiastunu...');
-            $this->createTrailer();
-
-            $this->setStage('thumbnail', 'Generowanie miniatury...');
-            $this->createThumbnail();
-
-            $this->setStage('done', 'Gotowe!');
         } catch (\Throwable $e) {
-            Log::error('ProcessFilmUpload: błąd przy przetwarzaniu filmu ID '.$this->filmId.' - '.$e->getMessage());
+            // bez tagów / czasu film nadal istnieje w bazie - nie przerywamy całego procesu
+            Log::error('ProcessFilmUpload: błąd (tagi/czas) film ID '.$this->filmId.' - '.$e->getMessage());
+            $warnings[] = 'Nie wszystkie dane zostały zapisane: '.$e->getMessage();
+        }
 
-            $this->setStage('error', 'Wystąpił błąd podczas przetwarzania filmu: '.$e->getMessage());
+        // zwiastun i miniatura są od siebie niezależne - błąd jednego nie blokuje drugiego,
+        // a sam film (już zapisany na dysku i w bazie) zostaje w każdym przypadku
+        $this->setStage('trailer', 'Tworzenie zwiastunu...');
+        try {
+            $this->createTrailer();
+        } catch (\Throwable $e) {
+            Log::error('ProcessFilmUpload: zwiastun film ID '.$this->filmId.' - '.$this->describeError($e));
+            $warnings[] = 'Zwiastun: '.$e->getMessage().' (szczegóły w storage/logs/laravel.log)';
+        }
+
+        $this->setStage('thumbnail', 'Generowanie miniatury...');
+        try {
+            $this->createThumbnail();
+        } catch (\Throwable $e) {
+            Log::error('ProcessFilmUpload: miniatura film ID '.$this->filmId.' - '.$this->describeError($e));
+            $warnings[] = 'Miniatura: '.$e->getMessage().' (szczegóły w storage/logs/laravel.log)';
+        }
+
+        $this->setStage('done', empty($warnings) ? 'Gotowe!' : implode("\n", $warnings));
+
+        // automatyczna kopia bazy po dodaniu filmu (max 20, najstarsze są kasowane);
+        // po 'done', żeby nie opóźniać komunikatu, a błąd kopii nie psuje dodanego filmu
+        try {
+            \App\Support\DatabaseBackup::create();
+        } catch (\Throwable $e) {
+            Log::error('ProcessFilmUpload: automatyczna kopia bazy nie powiodła się - '.$e->getMessage());
+        }
+    }
+
+    // pełny komunikat z ffmpeg (stderr) - "Encoding failed" sam w sobie nic nie mówi
+    private function describeError(\Throwable $e)
+    {
+        $msg = get_class($e).': '.$e->getMessage();
+        $prev = $e->getPrevious();
+        while ($prev) {
+            $msg .= "\n  -> ".get_class($prev).': '.$prev->getMessage();
+            $prev = $prev->getPrevious();
+        }
+        return $msg;
+    }
+
+    private function absoluteSource()
+    {
+        return storage_path('../../filmy/'.$this->storedPath);
+    }
+
+    private function getDuration()
+    {
+        $media = \FFMpeg::open($this->storedPath);
+        return (int) floor($media->getDurationInSeconds());
+    }
+
+    private function saveDuration()
+    {
+        $duration = $this->getDuration();
+        if ($duration > 0) {
+            DB::table('films')->where('id', $this->filmId)->update(['duration' => $duration]);
         }
     }
 
@@ -222,60 +278,65 @@ class ProcessFilmUpload implements ShouldQueue
 
     private function createTrailer()
     {
-        $check = shell_exec('ffmpeg -h');
-        if (empty($check)) {
-            throw new \Exception('ffmpeg nie jest zainstalowane / niedostępne w PATH serwera.');
-        }
-
-        $media = \FFMpeg::open($this->storedPath);
-        $duration = $media->getDurationInSeconds();
+        $duration = $this->getDuration();
 
         if ($duration <= 30) {
             throw new \Exception('Film jest zbyt krótki, aby przygotować zwiastun (min. ok. 40 sekund).');
         }
 
-        $start = $this->trailerStart;
+        $length = 15;
+        $start = (float) $this->trailerStart;
 
-        if ($start > $duration) {
-            $start = 720;
+        // zwiastun nie może wyjść poza koniec filmu
+        if ($start < 0) {
+            $start = 0;
+        }
+        if ($start + $length > $duration) {
+            $start = max(0, $duration - $length);
         }
 
-        if ($start > $duration) {
-            throw new \Exception('Zwiastun, który próbujesz wykonać, jest dłuższy niż cały film.');
-        }
-
-        // UWAGA: surowa biblioteka php-ffmpeg (\FFMpeg\FFMpeg::create()) - w odróżnieniu
-        // od fasady \FFMpeg::open() powyżej - NIE korzysta z dysków Laravela, tylko
-        // oczekuje prawdziwej ścieżki w systemie plików. Budujemy ją przez storage_path(),
-        // bo to jedyny sposób żeby zadziałało niezależnie od "working directory" procesu -
-        // a to jest różne przy żądaniu HTTP (Apache, CWD = public/) i przy workerze
-        // kolejki uruchomionym jako usługa NSSM (CWD = katalog startowy usługi).
-        // Gołe '../../filmy/...' (tak jak w oryginalnym kodzie kontrolera admina)
-        // zakłada CWD = public/ i dlatego w Jobie zawodziło.
-        $absoluteSourcePath = storage_path('../../filmy/'.$this->storedPath);
+        // surowe php-ffmpeg nie używa dysków Laravela - potrzebna prawdziwa ścieżka,
+        // niezależna od katalogu roboczego procesu (Apache vs. worker kolejki)
+        $absoluteSourcePath = $this->absoluteSource();
         $absoluteTrailerPath = storage_path('../../filmy/short/'.$this->filmId.'.mp4');
 
-        $ffmpeg = \FFMpeg\FFMpeg::create();
+        if (file_exists($absoluteTrailerPath)) {
+            @unlink($absoluteTrailerPath);
+        }
+
+        $ffmpeg = \FFMpeg\FFMpeg::create([
+            'timeout' => 3600,
+            'ffmpeg.threads' => 4,
+        ]);
         $video = $ffmpeg->open($absoluteSourcePath);
         $video->filters()->clip(
             \FFMpeg\Coordinate\TimeCode::fromSeconds($start),
-            \FFMpeg\Coordinate\TimeCode::fromSeconds(15)
+            \FFMpeg\Coordinate\TimeCode::fromSeconds($length)
         );
-        $video->save(new \FFMpeg\Format\Video\X264, $absoluteTrailerPath);
+
+        // Domyślny X264 z php-ffmpeg używa kodeka audio libfdk_aac, którego większość
+        // buildów ffmpeg (np. Windows) w ogóle nie ma -> "Encoding failed".
+        // Wbudowany kodek "aac" jest dostępny zawsze.
+        $format = new \FFMpeg\Format\Video\X264('aac', 'libx264');
+        $format->setAdditionalParameters(['-pix_fmt', 'yuv420p', '-movflags', '+faststart']);
+
+        $video->save($format, $absoluteTrailerPath);
     }
 
     private function createThumbnail()
     {
-        $check = shell_exec('ffmpeg -h');
-        if (empty($check)) {
-            throw new \Exception('ffmpeg nie jest zainstalowane / niedostępne w PATH serwera.');
+        $duration = $this->getDuration();
+
+        // klatka musi leżeć wewnątrz filmu
+        $second = (float) $this->thumbnailSecond;
+        if ($second < 0 || $second >= $duration) {
+            $second = max(0, floor($duration / 2));
         }
 
-        // z tego samego powodu co w createTrailer() - ścieżka niezależna od CWD procesu
         $thumbnailPath = storage_path('../../filmy/thumbnail/'.$this->filmId.'.png');
 
         if (file_exists($thumbnailPath)) {
-            unlink($thumbnailPath);
+            @unlink($thumbnailPath);
         }
 
         \FFMpeg::fromDisk('thumbnaill')
@@ -283,7 +344,7 @@ class ProcessFilmUpload implements ShouldQueue
             ->addFilter(function ($filters) {
                 $filters->resize(new \FFMpeg\Coordinate\Dimension(1280, 720));
             })
-            ->getFrameFromSeconds($this->thumbnailSecond)
+            ->getFrameFromSeconds($second)
             ->export()
             ->toDisk('thumbnail')
             ->save($this->filmId.'.png');

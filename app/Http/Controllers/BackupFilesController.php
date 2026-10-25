@@ -64,49 +64,16 @@ class BackupFilesController extends Controller
     
     public function copy_db(){
 
-        // save folder is in backup.php file. If you want change modify line 11 the name folder and 104 filesystems disk 
-        // Directory
-        $directory = "../storage/app/db-backup/";
-        // Returns array of files
-        $files = scandir($directory);
-        // Count number of files and store them to variable..
-        $first = count($files)-2;
-
-        \Artisan::call('backup:run',['--only-db'=>true]);
-
-        $l = 0;
-        $r = '';
-        foreach( new \DirectoryIterator('../storage/app/db-backup/') as $file )
-        {
-            $ctime = $file->getCTime();    // Time file was created
-            $fname = $file->getFileName(); // File name
-            if( $ctime > $l )
-            {
-                $l = $ctime;
-                $name = $fname;
-            }
+        // Własna kopia (App\Support\DatabaseBackup): jeden plik .zip z jednym plikiem .sql w środku,
+        // bez zagnieżdżonych folderów. Limit 20 kopii - najstarsze są usuwane automatycznie.
+        try {
+            $result = \App\Support\DatabaseBackup::create();
+        } catch (\Throwable $e) {
+            \Log::error('Kopia bazy danych: '.$e->getMessage());
+            return redirect(url('/admin_database_copy'))->with('errors', 'Błąd tworzenia kopi bazy danych: '.e($e->getMessage()));
         }
 
-        $db_copy_files = new db_copy_files;
-                  
-        $db_copy_files->name = $name;
-        $db_copy_files->url = "../storage/app/db-backup/".$name."";
-        $db_copy_files->save();
-      
-
-        $files = scandir($directory);
-        // Count number of files and store them to variable..
-        $two = count($files)-2;
-
-        
-        if($first < $two) {
-            
-            return redirect(url('/admin_database_copy'))->with('success', 'Kopia zapasowa bazy danych zrobiona!<br> znajdziesz ją w "videosite\storage\app\db-backup"');
-        }
-        else
-        {
-            return redirect(url('/admin_database_copy'))->with('errors', 'Błąd tworzenia kopi bazy danych prosimy o kontakt z administratorem.');
-        }
+        return redirect(url('/admin_database_copy'))->with('success', 'Kopia zapasowa bazy danych zrobiona!<br> znajdziesz ją w "videosite\\storage\\app\\db-backup" ('.e($result['name']).'). Przechowujemy maksymalnie '.\App\Support\DatabaseBackup::MAX_BACKUPS.' kopii.');
     }
 
     //==================================================================== END =========================================================== //

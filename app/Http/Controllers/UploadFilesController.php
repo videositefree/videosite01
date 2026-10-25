@@ -57,7 +57,7 @@ class UploadFilesController extends Controller
     
         $customMessages = [
             'file.required' => 'Prosimy o dodanie filmu!',
-            'file.mimes' => 'Plik musi być w formacie .mp4. Plik który został przesłany:  ' . $request->file('file')->getClientOriginalExtension() . '!',
+            'file.mimes' => 'Plik musi być w formacie .mp4. Plik który został przesłany:  ' . ($request->hasFile('file') ? $request->file('file')->getClientOriginalExtension() : '') . '!',
             'film_name.required' => 'Wymagany tytuł filmu!'
         ];
     

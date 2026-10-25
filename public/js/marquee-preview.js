@@ -108,7 +108,9 @@
       var p = point(e);
       var rect = card.getBoundingClientRect();
       // pierwsze uchwycenie: zamień z position:sticky/relative na fixed w bieżącym miejscu
-      card.style.width = rect.width + 'px';
+      // szerokość NIE jest ustawiana na sztywno - karta dopasowuje się do powiększanego wideo
+      card.style.right = 'auto';
+      card.style.bottom = 'auto';
       card.style.left = rect.left + 'px';
       card.style.top = rect.top + 'px';
       offsetX = p.clientX - rect.left;

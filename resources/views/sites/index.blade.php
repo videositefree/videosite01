@@ -10,80 +10,15 @@
     @if( $count_films >0 )
         
         @if (isset($films_check))
-            @section('filtr_text') <div style="font-size: 20px; margin-right: 15px;"> Sortuj według:</div>
-                <div class="dropdown">
-                    <button class="btn dropdown-toggle" style="color: white; background: #333;" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    
-                        @if (isset($index_asc))
-                            Data dodania - najstarsze
-                        @endif
-
-                        @if (isset($index))
-                            Data dodania - najnowsze
-                        @endif
-
-                        @if (isset($index_name_asc))
-                            Nazwa A - Z
-                        @endif
-
-                        @if (isset($index_name_desc))
-                            Nazwa Z - A
-                        @endif
-
-                        @if (isset($index_rating_asc))
-                            Ocena - rosnąco
-                        @endif
-
-                        @if (isset($index_rating_desc))
-                            Ocena - malejąco
-                        @endif
-
-                        @if (isset($index_duration_asc))
-                            Długość - rosnąco
-                        @endif
-
-                        @if (isset($index_duration_desc))
-                            Długość - malejąco
-                        @endif
-
-                        @if (isset($index_random))
-                            LOSOWO
-                        @endif
-
-                    </button>
-
-                    <div class="dropdown-menu dropdown-filtr-menu" aria-labelledby="dropdownMenuButton">
-                        <a href="{{ url('') }}" class="filtr_films fas fa-arrow-up"></a>
-                        DATY
-                        <a href="{{ url('index_asc') }}" class="filtr_films fas fa-arrow-down"></a></br>
-                        
-                        <a href="{{ url('/index_name_asc') }}" class="filtr_films fas fa-arrow-up"></a>
-                        NAZWY
-                        <a href="{{ url('/index_name_desc') }}" class="filtr_films fas fa-arrow-down"></a></br>
-                        
-                        <a href="{{ url('/index_rating_asc') }}" class="filtr_films fas fa-arrow-up"></a>
-                        OCENY
-                        <a href="{{ url('/index_rating_desc') }}" class="filtr_films fas fa-arrow-down"></a></br>
-
-                        <a href="{{ url('/index_duration_asc') }}" class="filtr_films fas fa-arrow-up"></a>
-                        DŁUGOŚCI
-                        <a href="{{ url('/index_duration_desc') }}" class="filtr_films fas fa-arrow-down"></a></br>
-                        
-                        <a href="{{ url('/index_random') }}" class="filtr_films fas fa-arrow-up"></a>
-                        LOSOWO
-                        <a href="{{ url('/index_random') }}" class="filtr_films fas fa-arrow-down"></a></br>
-                    </div>
-                </div>        
-                    
-                
+            @section('filtr_text')
+                @include('partials.film_sort')
                 <div class="t" style="font-size: 15px; padding-left: 20px;">
                     <a href="{{ url('/index_random_film_watch') }}">
                         <button class="btn btn-success">
-                            <i class="" aria-hidden="true" style="color: white;"></i>
                             <span> Losowy Film</span>
                         </button>
-                    </a>  
-</div> 
+                    </a>
+                </div>
             @endsection
         
         @endif
@@ -93,64 +28,7 @@
       @if (isset( $tags))
         @section('extra_content')
         <div class="row" style="word-wrap: break-word;">
-        @section('filtr_text') <div style="font-size: 20px; margin-right: 15px;"> Sortuj według:</div>
-    <div class="dropdown">
-        <button class="btn dropdown-toggle" style="color: white; background: #333;" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-        
-            @if (isset($select_cat_new))
-                Data dodania - najnowsze
-            @endif
-
-            @if (isset($select_cat_old))
-                Data dodania - najstarsze
-            @endif
-
-            @if (isset($select_cat_name_asc))
-                Nazwa A - Z
-            @endif
-
-            @if (isset($select_cat_name_desc))
-               Nazwa Z - A
-            @endif 
-
-            @if (isset($select_cat_stars_asc))
-               Ocena - rosnąco
-            @endif 
-
-            @if (isset($select_cat_stars_desc))
-                Ocena - malejąco
-            @endif 
-
-            @if (isset($select_cat_random))
-                LOSOWO
-            @endif 
-            
-            
-
-        
-
-        </button>
-
-        <div class="dropdown-menu dropdown-filtr-menu" aria-labelledby="dropdownMenuButton">
-              <a href="{{ url('/select_categories', $hidden_id_tags) }}" class="filtr_films fas fa-arrow-up"></a>
-              DATY DODANIA
-              <a href="{{ url('/select_categories_asc', $hidden_id_tags) }}" class="filtr_films fas fa-arrow-down"></a></br>
-            
-              <a href="{{ url('/select_categories_films_asc', $hidden_id_tags) }}" class="filtr_films fas fa-arrow-up"></a>
-              NAZWY
-              <a href="{{ url('/select_categories_films_desc', $hidden_id_tags) }}" class="filtr_films fas fa-arrow-down"></a></br>
-
-              <a href="{{ url('/select_categories_films_stars_asc', $hidden_id_tags) }}" class="filtr_films fas fa-arrow-up"></a>
-              OCENY
-              <a href="{{ url('/select_categories_films_stars_desc', $hidden_id_tags) }}" class="filtr_films fas fa-arrow-down"></a></br>
-
-              <a href="{{ url('/select_categories_random', $hidden_id_tags) }}" class="filtr_films fas fa-arrow-up"></a>
-              LOSOWO
-              <a href="{{ url('/select_categories_random', $hidden_id_tags) }}" class="filtr_films fas fa-arrow-down"></a></br>
-        </div>
-    </div>           
-    
-@endsection
+        @section('filtr_text') @include('partials.film_sort') @endsection
             <div style="padding-top: 2px; padding-bottom: 2px; margin-left: 7%">
                 <img src="{{URL::asset("$tags->thumbnail")}}" style="height: 270px; width: 230px;" controls muted></img></br>
                 <b>{{$tags->name}}</b></br>
@@ -179,64 +57,7 @@
 
       @if (isset( $stars))
         @section('extra_content')
-        @section('filtr_text') <div style="font-size: 20px; margin-right: 15px;"> Sortuj według:</div>
-    <div class="dropdown">
-        <button class="btn dropdown-toggle" style="color: white; background: #333;" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-        
-            @if (isset($select_star_new))
-                Data dodania - najnowsze
-            @endif
-
-            @if (isset($select_star_old))
-                Data dodania - najstarsze
-            @endif
-
-            @if (isset($select_star_name_asc))
-                Nazwa A - Z
-            @endif
-
-            @if (isset($select_star_name_desc))
-               Nazwa Z - A
-            @endif 
-
-            @if (isset($select_star_stars_asc))
-               Ocena - rosnąco
-            @endif 
-
-            @if (isset($select_star_stars_desc))
-                Ocena - malejąco
-            @endif 
-
-            @if (isset($select_star_random))
-                LOSOWO
-            @endif 
-            
-            
-
-        
-
-        </button>
-
-        <div class="dropdown-menu dropdown-filtr-menu" aria-labelledby="dropdownMenuButton">
-              <a href="{{ url('/select_stars', $hidden_id_stars) }}" class="filtr_films fas fa-arrow-up"></a>
-              DATY DODANIA
-              <a href="{{ url('/select_stars_asc', $hidden_id_stars) }}" class="filtr_films fas fa-arrow-down"></a></br>
-            
-              <a href="{{ url('/select_stars_films_asc', $hidden_id_stars) }}" class="filtr_films fas fa-arrow-up"></a>
-              NAZWY
-              <a href="{{ url('/select_stars_films_desc', $hidden_id_stars) }}" class="filtr_films fas fa-arrow-down"></a></br>
-
-              <a href="{{ url('/select_stars_films_stars_asc', $hidden_id_stars) }}" class="filtr_films fas fa-arrow-up"></a>
-              OCENY
-              <a href="{{ url('/select_stars_films_stars_desc', $hidden_id_stars) }}" class="filtr_films fas fa-arrow-down"></a></br>
-
-              <a href="{{ url('/select_stars_random', $hidden_id_stars) }}" class="filtr_films fas fa-arrow-up"></a>
-              LOSOWO
-              <a href="{{ url('/select_stars_random', $hidden_id_stars) }}" class="filtr_films fas fa-arrow-down"></a></br>
-        </div>
-    </div>           
-    
-@endsection
+        @section('filtr_text') @include('partials.film_sort') @endsection
 
         <div class="row" style="word-wrap: break-word;">
             <div style="padding-top: 2px; padding-bottom: 2px; margin-left: 7%">
@@ -278,64 +99,7 @@
 
       @if (isset( $studios))
         @section('extra_content')
-        @section('filtr_text') <div style="font-size: 20px; margin-right: 15px;"> Sortuj według:</div>
-    <div class="dropdown">
-        <button class="btn dropdown-toggle" style="color: white; background: #333;" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-        
-            @if (isset($select_studio_new))
-                Data dodania - najnowsze
-            @endif
-
-            @if (isset($select_studio_old))
-                Data dodania - najstarsze
-            @endif
-
-            @if (isset($select_studio_name_asc))
-                Nazwa A - Z
-            @endif
-
-            @if (isset($select_studio_name_desc))
-               Nazwa Z - A
-            @endif 
-
-            @if (isset($select_studio_stars_asc))
-               Ocena - rosnąco
-            @endif 
-
-            @if (isset($select_studio_stars_desc))
-                Ocena - malejąco
-            @endif 
-
-            @if (isset($select_studio_random))
-                LOSOWO
-            @endif 
-            
-            
-
-        
-
-        </button>
-
-        <div class="dropdown-menu dropdown-filtr-menu" aria-labelledby="dropdownMenuButton">
-              <a href="{{ url('/select_studios', $hidden_id_studios) }}" class="filtr_films fas fa-arrow-up"></a>
-              DATY DODANIA
-              <a href="{{ url('/select_studios_asc', $hidden_id_studios) }}" class="filtr_films fas fa-arrow-down"></a></br>
-            
-              <a href="{{ url('/select_studios_films_asc', $hidden_id_studios) }}" class="filtr_films fas fa-arrow-up"></a>
-              NAZWY
-              <a href="{{ url('/select_studios_films_desc', $hidden_id_studios) }}" class="filtr_films fas fa-arrow-down"></a></br>
-
-              <a href="{{ url('/select_studios_films_stars_asc', $hidden_id_studios) }}" class="filtr_films fas fa-arrow-up"></a>
-              OCENY
-              <a href="{{ url('/select_studios_films_stars_desc', $hidden_id_studios) }}" class="filtr_films fas fa-arrow-down"></a></br>
-
-              <a href="{{ url('/select_studios_random', $hidden_id_studios) }}" class="filtr_films fas fa-arrow-up"></a>
-              LOSOWO
-              <a href="{{ url('/select_studios_random', $hidden_id_studios) }}" class="filtr_films fas fa-arrow-down"></a></br>
-        </div>
-    </div>           
-    
-@endsection
+        @section('filtr_text') @include('partials.film_sort') @endsection
         <div class="row" style="word-wrap: break-word;">
             <div style="padding-top: 2px; padding-bottom: 2px; margin-left: 7%">
                 <img src="{{URL::asset("$studios->thumbnail")}}" style="height: 270px; width: 230px;" controls muted></img></br>

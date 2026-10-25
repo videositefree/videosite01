@@ -12,38 +12,41 @@
     Filtry
 </button>
 
-<form action="{{ url('/search/method') }}" method="GET" style="display:flex; flex-wrap:wrap; gap: 24px; width:100%; margin-top: 14px;">
-    <input type="hidden" name="search" value="{{$search}}">
+<form action="{{ url('/search') }}" method="GET" style="display:flex; flex-wrap:wrap; gap: 24px; width:100%; margin-top: 14px;">
+    <div class="col-12" style="padding:0;">
+        <input type="text" name="search" class="form-control" value="{{ $search }}" autocomplete="off"
+               placeholder="Szukaj: tytuł, tag, gwiazda, wytwórnia… (kilka słów = wszystkie naraz; &quot;fraza&quot; w cudzysłowie; -słowo wyklucza)">
+    </div>
 
     <div class="col-sm-3 col-lg-3">
         <div style="font-weight:600; margin-bottom:8px;">Sortuj wg <a type="button" data-toggle="collapse" data-target="#multiCollapseSort" aria-expanded="false" aria-controls="multiCollapseSort">(Powiązanie)</a></div>
         <div class="collapse multi-collapse" id="multiCollapseSort">
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="sort" value="relevance"> Powiązanie z tagami</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="sort" value="uploaddate"> Data przesłania</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="sort" value="rating"> Ocena</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="sort" value="length"> Długość</label>
+            @foreach (\App\Support\FilmSort::labels('search') as $sortKey => $sortLabel)
+                <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="sort" value="{{ $sortKey }}" {{ ($sort ?? null) === $sortKey ? 'checked' : '' }}> {{ $sortLabel }}</label>
+            @endforeach
         </div>
     </div>
 
     <div class="col-sm-3 col-lg-3">
         <div style="font-weight:600; margin-bottom:8px;">Data <a type="button" data-toggle="collapse" data-target="#multiCollapseDate" aria-expanded="false" aria-controls="multiCollapseDate">(Cały okres)</a></div>
         <div class="collapse multi-collapse" id="multiCollapseDate">
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="all"> Cały okres</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="today"> Ostatnie 3 dni</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="week"> W tym tygodniu</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="month"> W tym miesiącu</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="3month"> Ostatnie 3 miesiące</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="6month"> Ostatnie 6 miesięcy</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="all" {{ in_array($date ?? null, ['today','week','month']) ? (($date ?? null) === 'all') : true ? 'checked' : '' }}> Cały okres</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="today" {{ in_array($date ?? null, ['today','week','month']) ? (($date ?? null) === 'today') : false ? 'checked' : '' }}> Ostatnie 3 dni</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="week" {{ in_array($date ?? null, ['today','week','month']) ? (($date ?? null) === 'week') : false ? 'checked' : '' }}> W tym tygodniu</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="month" {{ in_array($date ?? null, ['today','week','month']) ? (($date ?? null) === 'month') : false ? 'checked' : '' }}> W tym miesiącu</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="3month" {{ in_array($date ?? null, ['today','week','month']) ? (($date ?? null) === '3month') : false ? 'checked' : '' }}> Ostatnie 3 miesiące</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="date" value="6month" {{ in_array($date ?? null, ['today','week','month']) ? (($date ?? null) === '6month') : false ? 'checked' : '' }}> Ostatnie 6 miesięcy</label>
         </div>
     </div>
 
     <div class="col-sm-4 col-lg-4">
         <div style="font-weight:600; margin-bottom:8px;">Czas trwania <a type="button" data-toggle="collapse" data-target="#multiCollapseTime" aria-expanded="false" aria-controls="multiCollapseTime">(Wszystkie)</a></div>
         <div class="collapse multi-collapse" id="multiCollapseTime">
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="time" value="3-10min"> Krótkie filmiki (3–10 min)</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="time" value="10-20min"> Średnie filmy (10–20 min)</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="time" value="20-40min"> Długie filmy (20–40 min)</label>
-            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="time" value="40min_more"> Pełnometrażowe (+40 min)</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="time" value="" {{ in_array($time ?? null, ['3-10min','10-20min','20-40min','40min_more']) ? '' : 'checked' }}> Dowolna długość</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="time" value="3-10min" {{ ($time ?? null) === '3-10min' ? 'checked' : '' }}> Krótkie filmiki (3–10 min)</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="time" value="10-20min" {{ ($time ?? null) === '10-20min' ? 'checked' : '' }}> Średnie filmy (10–20 min)</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="time" value="20-40min" {{ ($time ?? null) === '20-40min' ? 'checked' : '' }}> Długie filmy (20–40 min)</label>
+            <label style="display:block; padding:6px 0;"><input type="radio" class="radio_serch" name="time" value="40min_more" {{ ($time ?? null) === '40min_more' ? 'checked' : '' }}> Pełnometrażowe (+40 min)</label>
         </div>
     </div>
 
@@ -68,6 +71,11 @@
     <div class="col-sm-12">
         <div style="font-weight:600; margin-bottom:8px;">Konkretne tagi / gwiazdy / wytwórnie <a type="button" data-toggle="collapse" data-target="#multiCollapseEntities" aria-expanded="false" aria-controls="multiCollapseEntities">(Dowolne)</a></div>
         <div class="collapse multi-collapse" id="multiCollapseEntities">
+        <div style="padding:6px 0 10px;">
+            <span style="margin-right:14px;">Film ma mieć:</span>
+            <label style="margin:0 14px 0 0;"><input type="radio" name="match" value="any" {{ ($match ?? 'any') !== 'all' ? 'checked' : '' }}> dowolny z wybranych</label>
+            <label style="margin:0;"><input type="radio" name="match" value="all" {{ ($match ?? 'any') === 'all' ? 'checked' : '' }}> wszystkie wybrane</label>
+        </div>
         <div style="display:flex; flex-wrap:wrap; gap:24px; padding-top:6px;">
 
             <div class="upload-subgroup" style="border:none; padding:0; margin:0; min-width:260px; flex:1;">
@@ -83,7 +91,7 @@
                         @foreach ($selectedTags as $t)
                             <li class="tags" data-pill-id="tags_{{ $t->id }}">
                                 {{ $t->name }}
-                                <button type="button" class="deleteTag btn-delete" data-remove="tags_{{ $t->id }}">X</button>
+                                <button type="button" class="deleteTag pill-remove" data-remove="tags_{{ $t->id }}">&times;</button>
                             </li>
                             <input type="hidden" name="tags[]" data-pill-id="tags_{{ $t->id }}" value="{{ $t->id }}">
                         @endforeach
@@ -104,7 +112,7 @@
                         @foreach ($selectedStars as $s)
                             <li class="starr" data-pill-id="starr_{{ $s->id }}">
                                 {{ $s->name }}
-                                <button type="button" class="deleteTag btn-delete" data-remove="starr_{{ $s->id }}">X</button>
+                                <button type="button" class="deleteTag pill-remove" data-remove="starr_{{ $s->id }}">&times;</button>
                             </li>
                             <input type="hidden" name="stars[]" data-pill-id="starr_{{ $s->id }}" value="{{ $s->id }}">
                         @endforeach
@@ -125,7 +133,7 @@
                         @foreach ($selectedStudios as $st)
                             <li class="studios" data-pill-id="studios_{{ $st->id }}">
                                 {{ $st->name }}
-                                <button type="button" class="deleteTag btn-delete" data-remove="studios_{{ $st->id }}">X</button>
+                                <button type="button" class="deleteTag pill-remove" data-remove="studios_{{ $st->id }}">&times;</button>
                             </li>
                             <input type="hidden" name="studios[]" data-pill-id="studios_{{ $st->id }}" value="{{ $st->id }}">
                         @endforeach
@@ -165,7 +173,7 @@ $(function() {
             if ($('[data-pill-id="' + pillKey + '"]').length) return; // już dodane
 
             var li = $('<li class="' + pillClass + '" data-pill-id="' + pillKey + '">' + name +
-                ' <button type="button" class="deleteTag btn-delete" data-remove="' + pillKey + '">X</button></li>');
+                ' <button type="button" class="deleteTag pill-remove" data-remove="' + pillKey + '">&times;</button></li>');
             var hidden = $('<input type="hidden" name="' + fieldName + '[]" data-pill-id="' + pillKey + '" value="' + id + '">');
 
             $('#' + listId).append(li).append(hidden);
@@ -191,6 +199,26 @@ $(function() {
 
 
 @section('content')
+
+<div class="search-summary" style="margin: 4px 0 18px;">
+    @if (($search ?? '') !== '')
+        Wyniki dla <strong>„{{ $search }}”</strong>:
+    @else
+        Wyniki wyszukiwania:
+    @endif
+    <strong>{{ $films->total() }}</strong> {{ $films->total() === 1 ? 'film' : 'filmów' }}
+    @if (($searchMode ?? 'all') === 'any')
+        <div style="font-size:14px; color: var(--muted); margin-top:4px;">
+            Żaden film nie pasuje do wszystkich słów naraz - pokazuję filmy pasujące do części z nich (najlepiej dopasowane na górze).
+        </div>
+    @endif
+</div>
+
+@if ($films->total() === 0)
+    <div class="alert alert-danger text-center">
+        Nic nie znaleziono. Spróbuj innego słowa, usuń część filtrów albo wpisz tylko fragment nazwy.
+    </div>
+@endif
 
 <div class="film-grid">
 @foreach ($films as $film)

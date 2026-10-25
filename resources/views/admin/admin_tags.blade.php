@@ -111,7 +111,7 @@
                             </a>
                         </td>
                         <td>
-                            <img src="{{URL::asset("$tag->thumbnail")}}" class="img-fluid img-thumbnail" alt="{{$tag->name}}" style="max-width:70px; border-radius:6px;">
+                            <img src="{{URL::asset("$tag->thumbnail")}}" class="img-fluid" alt="{{$tag->name}}" style="max-width:70px; border-radius:6px;">
                         </td>
                         <td>
                             <a href="{{url('/edit_tags', $tag->id)}}" class="btn btn-info">Edytuj</a>

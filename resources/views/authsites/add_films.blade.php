@@ -10,54 +10,82 @@
 <script src="{{ asset('js/jquery.form.js') }}" defer></script>
 
 <script>
-function del_stick() {
-    document.getElementById("button_video_sticky").style.display='inline';
-    document.getElementById("button_video_sticky_block").style.display='none';
-    var el = document.getElementById("sticky_video");
-    el.classList.remove("is-floating");
-    el.style.left = ''; el.style.top = ''; el.style.width = ''; el.style.height = '';
+// suffix: '' = podgląd desktop, '_2' = podgląd mobile
+function previewEls(suffix) {
+    var card = document.getElementById('sticky_video' + suffix);
+    return { card: card, box: card.querySelector('.resizable-video') };
 }
-function btn_stick() {
-    document.getElementById("button_video_sticky").style.display='none';
-    document.getElementById("button_video_sticky_block").style.display='inline';
-    document.getElementById("sticky_video").classList.add("is-floating");
+function setStickyButtons(suffix, floating) {
+    document.getElementById('button_video_sticky' + suffix).style.display = floating ? 'none' : 'inline';
+    document.getElementById('button_video_sticky_block' + suffix).style.display = floating ? 'inline' : 'none';
+    document.getElementById('button_video_reset' + suffix).style.display = floating ? 'inline' : 'none';
 }
-function del_stick_2() {
-    document.getElementById("button_video_sticky_2").style.display='inline';
-    document.getElementById("button_video_sticky_block_2").style.display='none';
-    var el = document.getElementById("sticky_video_2");
-    el.classList.remove("is-floating");
-    el.style.left = ''; el.style.top = ''; el.style.width = ''; el.style.height = '';
+function clearPreviewInline(el) {
+    el.box.style.width = '';
+    el.box.style.height = '';
+    ['left', 'top', 'right', 'bottom', 'width', 'height'].forEach(function (p) { el.card.style[p] = ''; });
 }
-function btn_stick_2() {
-    document.getElementById("button_video_sticky_2").style.display='none';
-    document.getElementById("button_video_sticky_block_2").style.display='inline';
-    document.getElementById("sticky_video_2").classList.add("is-floating");
+function btn_stick_any(suffix) {
+    var el = previewEls(suffix);
+    // zapamiętaj dokładne miejsce i rozmiar, żeby po odpięciu nic nie "skakało"
+    var cardRect = el.card.getBoundingClientRect();
+    var boxRect = el.box.getBoundingClientRect();
+    el.box.style.width = boxRect.width + 'px';
+    el.box.style.height = boxRect.height + 'px';
+    el.card.style.left = cardRect.left + 'px';
+    el.card.style.top = cardRect.top + 'px';
+    el.card.classList.add('is-floating');
+    setStickyButtons(suffix, true);
 }
+function del_stick_any(suffix) {
+    // przypięcie z powrotem na miejscu = pełny reset rozmiaru i pozycji
+    var el = previewEls(suffix);
+    el.card.classList.remove('is-floating');
+    clearPreviewInline(el);
+    setStickyButtons(suffix, false);
+}
+function resetPreviewSize(suffix) {
+    // "Resetuj widok": wraca do domyślnego rozmiaru i położenia, ale nadal jest odpięty
+    del_stick_any(suffix);
+    btn_stick_any(suffix);
+}
+function del_stick() { del_stick_any(''); }
+function btn_stick() { btn_stick_any(''); }
+function del_stick_2() { del_stick_any('_2'); }
+function btn_stick_2() { btn_stick_any('_2'); }
 </script>
 
 <style>
-.upload-progressbar-wrap { margin: 4px 0 18px; }
-.upload-progressbar-track { background:#e9ecef; border-radius:999px; height:10px; overflow:hidden; }
+/* --- okno przesyłania i przetwarzania --- */
+#div2 .modal-dialog { max-width: 480px; width: calc(100% - 24px); margin: 0 auto; }
+#div2 .modal-content { width: 100%; }
+#div2 .modal-body { display: block; padding: 22px 24px; text-align: center; }
+#div2 .modal-title { width: 100%; text-align: center; margin: 0; }
+#div2 .modal-footer { justify-content: center; gap: 8px; }
+
+.upload-stage-list { list-style:none; padding:0; margin:0 auto 14px; display:inline-flex; flex-direction:column; gap:8px; text-align:left; }
+.upload-stage-list li { display:flex; align-items:center; gap:10px; font-size:15px; opacity:.5; }
+.upload-stage-list li .upload-stage-check { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; border:2px solid currentColor; font-size:12px; flex-shrink:0; }
+.upload-stage-list li.is-active { opacity:1; font-weight:600; }
+.upload-stage-list li.is-active .upload-stage-check { border-top-color:transparent; animation:upload-spin .8s linear infinite; }
+.upload-stage-list li.is-done { opacity:1; color:#28a745; }
+.upload-stage-list li.is-done .upload-stage-check { background:#28a745; border-color:#28a745; }
+.upload-stage-list li.is-done .upload-stage-check::after { content:"\2713"; color:#fff; }
+@keyframes upload-spin { to { transform:rotate(360deg); } }
+
+.upload-progressbar-wrap { margin: 0 0 6px; }
+.upload-progressbar-track { background:#e9ecef; border-radius:999px; height:12px; overflow:hidden; }
 .upload-progressbar-fill { background:#28a745; height:100%; width:0%; transition:width .25s ease; }
-.upload-progressbar-label { text-align:right; font-size:12px; color:#6c757d; margin-top:4px; }
-
-.upload-stage-list { list-style:none; padding:0; margin:0 auto 14px; text-align:left; display:inline-block; }
-.upload-stage-list li { display:flex; align-items:center; gap:10px; padding:6px 0; color:#adb5bd; font-size:14px; }
-.upload-stage-list li .upload-stage-check {
-  display:inline-flex; align-items:center; justify-content:center;
-  width:22px; height:22px; border-radius:50%; border:2px solid #dee2e6;
-  font-size:12px; flex-shrink:0;
-}
-.upload-stage-list li.is-active { color:#212529; font-weight:600; }
-.upload-stage-list li.is-active .upload-stage-check { border-color:#28a745; color:#28a745; }
-.upload-stage-list li.is-done { color:#28a745; }
-.upload-stage-list li.is-done .upload-stage-check { background:#28a745; border-color:#28a745; color:#fff; }
-.upload-stage-list li.is-done .upload-stage-check::after { content:"\2713"; }
-
+.upload-progressbar-label { text-align:right; font-size:13px; color:#6c757d; margin-top:6px; }
+.upload-status-text { margin-top:10px; font-size:14px; }
+.upload-status-text.is-success { color:#28a745; font-weight:600; }
 .upload-error-box {
-  margin-top:10px; padding:10px 14px; border-radius:6px;
-  background:#f8d7da; color:#842029; font-size:14px; text-align:left;
+  margin-top:14px; padding:10px 14px; border-radius:6px;
+  background:#f8d7da; color:#842029; font-size:14px; text-align:left; white-space:pre-line;
+}
+.upload-warn-box {
+  margin-top:14px; padding:10px 14px; border-radius:6px;
+  background:#fff3cd; color:#664d03; font-size:14px; text-align:left; white-space:pre-line;
 }
 </style>
 
@@ -102,11 +130,12 @@ function btn_stick_2() {
                 </div>
                 <p class="upload-preview__hint">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l6-6m0 0l6 6M9 15V4m6 0l6 6m0 0l-6 6m6-6H10"/></svg>
-                    Przeciągnij za prawy dolny róg, aby zmienić rozmiar podglądu.
+                    Przeciągnij za prawy dolny róg, aby zmienić rozmiar podglądu (po odblokowaniu możesz go powiększyć do woli).
                 </p>
                 <div class="upload-preview__actions">
                     <button class="btn btn-delete" onclick="del_stick()" id="button_video_sticky_block" style="display: none;">Przypnij na miejscu</button>
                     <button class="btn btn-success" onclick="btn_stick()" id="button_video_sticky">Odblokuj i przesuń</button>
+                    <button class="btn btn-secondary" onclick="resetPreviewSize('')" id="button_video_reset" style="display: none;" title="Przywróć domyślny rozmiar i położenie">Resetuj widok</button>
                 </div>
             </div>
         </div>
@@ -129,6 +158,7 @@ function btn_stick_2() {
                     <div class="upload-preview__actions">
                         <button class="btn btn-delete" onclick="del_stick_2()" id="button_video_sticky_block_2" style="display: none;">Przypnij na miejscu</button>
                         <button class="btn btn-success" onclick="btn_stick_2()" id="button_video_sticky_2">Odblokuj i przesuń</button>
+                        <button class="btn btn-secondary" onclick="resetPreviewSize('_2')" id="button_video_reset_2" style="display: none;" title="Przywróć domyślny rozmiar i położenie">Resetuj widok</button>
                     </div>
                 </div>
             </div>
@@ -158,24 +188,24 @@ function btn_stick_2() {
 
                     <div class="upload-toggle-row">
                         <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input" id="customCheck" data-toggle='collapse' data-target='#collapsediv1'>
+                            <input type="checkbox" class="custom-control-input" id="customCheck">
                             <label class="custom-control-label" for="customCheck">Trailer filmowy</label>
                         </div>
                         <i class="fas fa-question" data-toggle="tooltip" data-placement="bottom" title="Trailer tworzymy z 12 min filmu jeśli masz ochotę to zmienić możesz zrobić to zanzaczając checkbox"></i>
                     </div>
-                    <div id='collapsediv1' class='collapse upload-collapse'>
+                    <div id='collapsediv1' class='upload-collapse'>
                         <input type="time" name="short_time" id="short_time" step="1" value="00:00:00" max="05:00:00">
                         <input name="time_sec" type="hidden" value="720"/>
                     </div>
 
                     <div class="upload-toggle-row" style="margin-top: 14px;">
                         <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input" id="thumbchk" data-toggle='collapse' data-target='#thumb'>
+                            <input type="checkbox" class="custom-control-input" id="thumbchk">
                             <label class="custom-control-label" for="thumbchk">Miniaturka Filmu</label>
                         </div>
                         <i class="fas fa-question" data-toggle="tooltip" data-placement="bottom" title="Miniaturke tworzymy z 12 min filmu jeśli masz ochotę to zmienić możesz zrobić to zanzaczając checkbox"></i>
                     </div>
-                    <div id='thumb' class='collapse upload-collapse'>
+                    <div id='thumb' class='upload-collapse'>
                         <input type="time" name="short_time_thumbnail" id="short_time_thumbnail" step="1" value="00:00:00" max="05:00:00">
                         <input name="time_sec_thumbnail" type="hidden" value="720"/>
                     </div>
@@ -329,46 +359,35 @@ function btn_stick_2() {
     </div>
 </div>
 
-<div class="modal fade" id="div2" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="false" data-backdrop="static" data-keyboard="false">
+<div class="modal fade" id="div2" tabindex="-1" role="dialog" aria-labelledby="uploadModalTitle" aria-hidden="true" data-backdrop="static" data-keyboard="false">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content modtext">
             <div class="modal-header">
-                <h5 class="modal-title text-center"><tw>Przesyłanie Pliku!</tw></h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <h5 class="modal-title" id="uploadModalTitle">Przesyłanie pliku</h5>
             </div>
-            <div class="modal-body row justify-content-center text-center">
-                <div style="width:100%;">
+            <div class="modal-body">
+                <ul class="upload-stage-list" id="uploadStageList">
+                    <li data-stage="uploading"><span class="upload-stage-check"></span> Przesyłanie pliku</li>
+                    <li data-stage="tags"><span class="upload-stage-check"></span> Zapisywanie tagów, gwiazd i wytwórni</li>
+                    <li data-stage="trailer"><span class="upload-stage-check"></span> Tworzenie zwiastunu</li>
+                    <li data-stage="thumbnail"><span class="upload-stage-check"></span> Generowanie miniatury</li>
+                    <li data-stage="done"><span class="upload-stage-check"></span> Gotowe!</li>
+                </ul>
 
-                    <div class="upload-progressbar-wrap">
-                        <div class="upload-progressbar-track">
-                            <div class="upload-progressbar-fill" id="uploadProgressFill"></div>
-                        </div>
-                        <div class="upload-progressbar-label" id="uploadProgressLabel">0%</div>
+                <div class="upload-progressbar-wrap" id="uploadProgressWrap">
+                    <div class="upload-progressbar-track">
+                        <div class="upload-progressbar-fill" id="uploadProgressFill"></div>
                     </div>
-
-                    <ul class="upload-stage-list" id="uploadStageList">
-                        <li data-stage="uploading"><span class="upload-stage-check"></span> Przesyłanie pliku</li>
-                        <li data-stage="tags"><span class="upload-stage-check"></span> Zapisywanie tagów, gwiazd i wytwórni</li>
-                        <li data-stage="trailer"><span class="upload-stage-check"></span> Tworzenie zwiastunu</li>
-                        <li data-stage="thumbnail"><span class="upload-stage-check"></span> Generowanie miniatury</li>
-                        <li data-stage="done"><span class="upload-stage-check"></span> Gotowe!</li>
-                    </ul>
-
-                    <div class="upload-error-box" id="uploadErrorBox" style="display:none;"></div>
-
-                    <tw>Prosimy o chwilę cierpliwości.<br>
-                        Po zakończeniu przetwarzania zostaniesz przeniesiony do edycji filmu.</tw><br>
-
-                    <div class="form-group" id="uploadSpinner">
-                        <img src="{{ asset('icon/app.blade/reload.gif') }}" style="width: 70px; height: 70px;">
-                    </div>
-
+                    <div class="upload-progressbar-label" id="uploadProgressLabel">0%</div>
                 </div>
+
+                <div class="upload-status-text" id="uploadStatusText">Prosimy o chwilę cierpliwości...</div>
+                <div class="upload-warn-box" id="uploadWarnBox" style="display:none;"></div>
+                <div class="upload-error-box" id="uploadErrorBox" style="display:none;"></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <div class="modal-footer" id="uploadModalFooter" style="display:none;">
+                <a href="#" class="btn btn-success" id="uploadEditLink" style="display:none;">Edytuj film</a>
+                <button type="button" class="btn btn-secondary" id="uploadCloseBtn">Zamknij</button>
             </div>
         </div>
     </div>
@@ -377,81 +396,173 @@ function btn_stick_2() {
 <script>
 (function () {
     var form = document.getElementById('add_films');
+    var modalEl = $('#div2');
+    var titleEl = document.getElementById('uploadModalTitle');
+    var stageList = document.getElementById('uploadStageList');
+    var progressWrap = document.getElementById('uploadProgressWrap');
     var progressFill = document.getElementById('uploadProgressFill');
     var progressLabel = document.getElementById('uploadProgressLabel');
-    var stageList = document.getElementById('uploadStageList');
+    var statusText = document.getElementById('uploadStatusText');
+    var warnBox = document.getElementById('uploadWarnBox');
     var errorBox = document.getElementById('uploadErrorBox');
-    var spinner = document.getElementById('uploadSpinner');
+    var footer = document.getElementById('uploadModalFooter');
+    var editLink = document.getElementById('uploadEditLink');
+    var closeBtn = document.getElementById('uploadCloseBtn');
+    var submitBtn = document.getElementById('submit');
+
+    var STORE_KEY = 'videosite_upload_job';
+    var STATUS_URL = '{{ url('/add_films_status') }}/';
+    var EDIT_URL = '{{ url('/edit_films') }}/';
+    var ORDER = ['uploading', 'tags', 'trailer', 'thumbnail', 'done'];
+
     var pollTimer = null;
+    var job = null; // { token, filmId, name, hidden }
 
-    // kolejność kroków pokazywanych w modalu
-    var stageOrder = ['uploading', 'tags', 'trailer', 'thumbnail', 'done'];
+    // ---------- trwałość: po odświeżeniu strony wznawiamy podgląd ----------
+    function saveJob() {
+        try {
+            if (job) { localStorage.setItem(STORE_KEY, JSON.stringify(job)); }
+            else { localStorage.removeItem(STORE_KEY); }
+        } catch (e) {}
+    }
+    function loadJob() {
+        try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { return null; }
+    }
 
-    // mapowanie wartości "stage" z tabeli upload_progress (patrz ProcessFilmUpload::setStage)
-    // na kroki widoczne w interfejsie
-    var backendStageMap = {
-        'queued': 'uploading',
-        'tags': 'tags',
-        'trailer': 'trailer',
-        'thumbnail': 'thumbnail',
-        'done': 'done'
-    };
-
-    function setActiveStage(stageKey) {
-        var reachedIndex = stageOrder.indexOf(stageKey);
-        var items = stageList.querySelectorAll('li');
-        for (var i = 0; i < items.length; i++) {
-            var li = items[i];
-            var liIndex = stageOrder.indexOf(li.getAttribute('data-stage'));
+    // ---------- UI ----------
+    function setStage(stageKey, allDone) {
+        var reached = ORDER.indexOf(stageKey);
+        stageList.querySelectorAll('li').forEach(function (li) {
+            var i = ORDER.indexOf(li.getAttribute('data-stage'));
             li.classList.remove('is-active', 'is-done');
-            if (liIndex < reachedIndex) {
-                li.classList.add('is-done');
-            } else if (liIndex === reachedIndex) {
-                li.classList.add('is-active');
-            }
+            if (allDone || i < reached) { li.classList.add('is-done'); }
+            else if (i === reached) { li.classList.add('is-active'); }
+        });
+    }
+
+    function resetModal() {
+        titleEl.textContent = 'Przesyłanie pliku';
+        progressWrap.style.display = '';
+        progressFill.style.width = '0%';
+        progressLabel.textContent = '0%';
+        statusText.style.display = '';
+        statusText.className = 'upload-status-text';
+        statusText.textContent = 'Prosimy o chwilę cierpliwości...';
+        warnBox.style.display = 'none';
+        errorBox.style.display = 'none';
+        errorBox.textContent = '';
+        footer.style.display = 'none';
+        editLink.style.display = 'none';
+        setStage('uploading');
+    }
+
+    function showProcessing() {
+        // plik jest już na serwerze - pasek wysyłania znika, zostaje lista etapów
+        titleEl.textContent = 'Przetwarzanie filmu';
+        progressWrap.style.display = 'none';
+        statusText.style.display = '';
+        statusText.className = 'upload-status-text';
+        statusText.textContent = 'To może potrwać kilka minut. Możesz zamknąć to okno lub odświeżyć stronę — ' +
+            'przetwarzanie trwa w tle, a po jego zakończeniu to okno pojawi się ponownie.';
+        footer.style.display = '';
+        closeBtn.textContent = 'Zamknij';
+        editLink.style.display = 'none';
+    }
+
+    function showResult(data) {
+        var ok = data.stage === 'done' && (!data.message || data.message === 'Gotowe!');
+        progressWrap.style.display = 'none';
+        footer.style.display = '';
+        closeBtn.textContent = 'Dodaj kolejny film';
+        editLink.href = EDIT_URL + job.filmId;
+        editLink.style.display = '';
+
+        if (ok) {
+            setStage('done', true);
+            titleEl.textContent = 'Gotowe!';
+            statusText.className = 'upload-status-text is-success';
+            statusText.textContent = 'Wszystko się udało! Film „' + job.name + '” został przesłany i przetworzony.';
+        } else {
+            setStage('done', data.stage === 'done');
+            titleEl.textContent = 'Film przesłany';
+            statusText.className = 'upload-status-text';
+            statusText.textContent = 'Film „' + job.name + '” został zapisany, ale nie wszystko udało się przetworzyć:';
+            warnBox.style.display = 'block';
+            warnBox.textContent = data.message || 'Nieznany błąd.';
         }
+        modalEl.modal('show');
+
+        // wynik został pokazany - po odświeżeniu nie wracamy już do tego filmu
+        job = null;
+        saveJob();
     }
 
-    function showError(message) {
-        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-        if (spinner) { spinner.style.display = 'none'; }
+    function showUploadError(message) {
+        statusText.style.display = 'none';
         errorBox.style.display = 'block';
-        errorBox.textContent = message || 'Wystąpił nieoczekiwany błąd podczas przetwarzania filmu.';
+        errorBox.textContent = message || 'Wystąpił nieoczekiwany błąd podczas przesyłania filmu.';
+        footer.style.display = '';
+        closeBtn.textContent = 'Zamknij';
+        editLink.style.display = 'none';
+        submitBtn.disabled = false;
     }
 
-    function pollStatus(token, filmId) {
-        pollTimer = setInterval(function () {
-            fetch('{{ url('/add_films_status') }}/' + token, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(function (res) {
-                if (!res.ok) { throw new Error('status_' + res.status); }
-                return res.json();
-            })
-            .then(function (data) {
-                if (data.stage === 'error') {
-                    showError(data.message);
-                    return;
-                }
+    closeBtn.addEventListener('click', function () {
+        if (job) { job.hidden = true; saveJob(); } // zamknięte w trakcie przetwarzania
+        modalEl.modal('hide');
+    });
 
-                var uiStage = backendStageMap[data.stage] || 'uploading';
-                setActiveStage(uiStage);
-
-                if (data.stage === 'done') {
-                    clearInterval(pollTimer);
-                    pollTimer = null;
-                    if (spinner) { spinner.style.display = 'none'; }
-                    setTimeout(function () {
-                        window.location.href = '{{ url('/edit_films') }}/' + filmId;
-                    }, 1200);
-                }
-            })
-            .catch(function () {
-                // pojedynczy nieudany odczyt statusu nie przerywa procesu, spróbujemy ponownie za 1,5s
-            });
-        }, 1500);
+    // ---------- odpytywanie o postęp ----------
+    function poll() {
+        if (!job) { return; }
+        fetch(STATUS_URL + job.token, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+        .then(function (res) {
+            if (res.status === 404) { stopPolling(); job = null; saveJob(); modalEl.modal('hide'); return null; }
+            if (!res.ok) { throw new Error('status_' + res.status); }
+            return res.json();
+        })
+        .then(function (data) {
+            if (!data || !job) { return; }
+            if (data.stage === 'done' || data.stage === 'error') {
+                stopPolling();
+                showResult(data);
+            } else if (ORDER.indexOf(data.stage) > 0) {
+                setStage(data.stage);
+            } else {
+                setStage('tags'); // 'queued' - czeka na worker; pierwszy etap pokazujemy jako bieżący
+            }
+        })
+        .catch(function () { /* pojedynczy błąd odczytu - spróbujemy ponownie */ });
+    }
+    function startPolling() {
+        stopPolling();
+        poll();
+        pollTimer = setInterval(poll, 2000);
+    }
+    function stopPolling() {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     }
 
+    // ---------- wznowienie po odświeżeniu strony ----------
+    var saved = loadJob();
+    if (saved && saved.token) {
+        job = saved;
+        resetModal();
+        showProcessing();
+        setStage('tags');
+        if (!job.hidden) { modalEl.modal('show'); }
+        startPolling();
+    }
+
+    function resetForm() {
+        form.reset();
+        $('#tagList, #starList, #studiosList').find('li, input').remove();
+        $('#video_here, #video_here_2').attr('src', '');
+        $('.custom-file-label').removeClass('selected').text('');
+        submitBtn.disabled = false;
+    }
+
+    // ---------- wysyłanie formularza ----------
     form.addEventListener('submit', function (e) {
         e.preventDefault();
 
@@ -462,24 +573,22 @@ function btn_stick_2() {
             return;
         }
 
-        errorBox.style.display = 'none';
-        errorBox.textContent = '';
-        progressFill.style.width = '0%';
-        progressLabel.textContent = '0%';
-        if (spinner) { spinner.style.display = ''; }
-        setActiveStage('uploading');
-
-        $('#div2').modal('show');
+        stopPolling();
+        resetModal();
+        submitBtn.disabled = true;
+        modalEl.modal('show');
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', form.getAttribute('action'), true);
         xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('Accept', 'application/json');
 
         xhr.upload.addEventListener('progress', function (evt) {
             if (evt.lengthComputable) {
                 var pct = Math.round((evt.loaded / evt.total) * 100);
                 progressFill.style.width = pct + '%';
                 progressLabel.textContent = pct + '%';
+                if (pct >= 100) { statusText.textContent = 'Zapisywanie filmu na serwerze...'; }
             }
         });
 
@@ -488,20 +597,23 @@ function btn_stick_2() {
             try { response = JSON.parse(xhr.responseText); } catch (err) { response = null; }
 
             if (xhr.status === 200 && response && response.token) {
-                progressFill.style.width = '100%';
-                progressLabel.textContent = '100%';
-                pollStatus(response.token, response.film_id);
+                job = { token: response.token, filmId: response.film_id, name: filmName, hidden: false };
+                saveJob();
+                resetForm();
+                showProcessing();
+                setStage('tags');
+                startPolling();
             } else if (xhr.status === 422 && response && response.errors) {
                 var keys = Object.keys(response.errors);
                 var firstError = keys.length ? response.errors[keys[0]] : null;
-                showError(Array.isArray(firstError) ? firstError[0] : firstError);
+                showUploadError(Array.isArray(firstError) ? firstError[0] : firstError);
             } else {
-                showError('Nie udało się wysłać pliku na serwer.');
+                showUploadError('Nie udało się wysłać pliku na serwer (kod ' + xhr.status + ').');
             }
         };
 
         xhr.onerror = function () {
-            showError('Błąd połączenia podczas wysyłania pliku.');
+            showUploadError('Błąd połączenia podczas wysyłania pliku.');
         };
 
         xhr.send(new FormData(form));
@@ -509,166 +621,110 @@ function btn_stick_2() {
 })();
 </script>
 
-<!-- autocomplete: tagi -->
 <script>
-$(function() {
-  $('#tag').autocomplete({
-      source: "{{url('/gettag')}}",
-      minLength: 1,
-      scroll:true,
-      select: function(event, ui)
-      {
-        $('#tag').val(ui.item.value);
-        var preview = document.getElementById("tag");
-        preview.setAttribute("tag_id", ui.item.tag_id);
-      }
-    }).autocomplete( "instance" )._renderItem = function( ul, item ) {
-      return $( "<li class='"+item.disabled+"'><div><img src='"+item.img+"'><span>"+item.value+"</span></div></li>" ).appendTo( ul );
-       };
-});
+$(function () {
 
-  var id = 0;
-  $("#addTag").click(function(){
-      if($("#tag").val() ) {
-              id++;
-          var li = document.createElement("li");
-              li.className = "tags";
-              li.setAttribute("id", id);
-          var i = document.createElement("INPUT");
-              i.setAttribute("name","multiTag[]");
-              i.setAttribute("type","hidden");
-              i.setAttribute("id", id);
-          var tag = document.getElementById('tag').value;
-          var tag_id = $('#tag').attr("tag_id")
-          url= '{{ url("/select_categories", "tag_id_url") }}';
-          url = url.replace('tag_id_url', tag_id);
+    // ---------- Zwiastun / miniaturka: pola pojawiają się natychmiast i zawsze zgodnie z checkboxem ----------
+    function bindToggle(checkId, boxId, timeId, hiddenName) {
+        var chk = document.getElementById(checkId);
+        var box = document.getElementById(boxId);
+        if (!chk || !box) { return; }
 
-          li.innerHTML =  '<a href="'+url+'" target="_blank"> '  + tag +' </a> <button class=\"deleteTag btn-delete\" id=\"'+id+'\">X</button>'
-          i.setAttribute("value", tag);
+        function sync() {
+            box.classList.toggle('is-open', chk.checked);
+            if (!chk.checked) {
+                // wyłączone = wracamy do wartości domyślnych, żeby ukryte pole nie wysyłało starego czasu
+                document.getElementById(timeId).value = '00:00:00';
+                var hidden = box.querySelector('input[name="' + hiddenName + '"]');
+                if (hidden) { hidden.value = '720'; }
+            }
+        }
+        chk.addEventListener('change', sync);
+        // przeglądarka potrafi odtworzyć zaznaczony checkbox po odświeżeniu - ustawiamy widok zgodnie ze stanem
+        box.classList.toggle('is-open', chk.checked);
+    }
+    bindToggle('customCheck', 'collapsediv1', 'short_time', 'time_sec');
+    bindToggle('thumbchk', 'thumb', 'short_time_thumbnail', 'time_sec_thumbnail');
 
-          $("#tagList").append(li)
-          $("#tagList").append(i)
-          $('#tag').val('');
-      }});
+    // ---------- Tagi / gwiazdy / wytwórnie ----------
+    function addPill(cfg) {
+        var $input = $(cfg.input);
+        var name = $.trim($input.val());
+        if (!name) { return; }
 
-  $("#tagList").on('click', 'button.deleteTag', function() {
-      var idDiv = this.id;
-      $("#"+idDiv).remove()
-      $(":input[id='"+idDiv+"']").remove();
-  });
+        var $list = $(cfg.list);
 
-  $("#tagList").on('click', 'button.deleteTagExsit', function() {
-      var del_id = this.id;
-      var toDel = del_id.replace('id_', '');
-      $("#id_"+toDel).remove();
-  });
+        // ta sama pozycja nie może być dodana dwa razy
+        var duplicate = false;
+        $list.children('li[data-name]').each(function () {
+            if ($(this).attr('data-name').toLowerCase() === name.toLowerCase()) { duplicate = true; }
+        });
+        if (duplicate) { $input.val('').removeAttr(cfg.idAttr); return; }
 
+        var id = $input.attr(cfg.idAttr);
+        var $li = $('<li>').addClass(cfg.cls).attr('data-name', name);
 
-// autocomplete: gwiazdy
-$(function() {
-  $('#star').autocomplete({
-      source: "{{url('/getstar')}}",
-      minLength: 1,
-      scroll:true,
-      select: function(event, ui)
-      {
-        $('#star').val(ui.item.value);
-        var preview = document.getElementById("star");
-        preview.setAttribute("star_id", ui.item.star_id);
-      }
-    }).autocomplete( "instance" )._renderItem = function( ul, item ) {
-      return $( "<li class='"+item.disabled+"'><div><img src='"+item.img+"'><span>"+item.value+"</span></div></li>" ).appendTo( ul );
-    };
-});
+        if (id) {
+            $('<a>').attr({ href: cfg.urlBase + '/' + id, target: '_blank' }).text(name).appendTo($li);
+        } else {
+            $('<span>').text(name).appendTo($li);
+        }
+        $('<button>').attr({ type: 'button', 'aria-label': 'Usuń: ' + name, title: 'Usuń' })
+            .addClass('pill-remove').html('&times;').appendTo($li);
+        $('<input>').attr({ type: 'hidden', name: cfg.fieldName }).val(name).appendTo($li);
 
-var id = 0;
-$("#addStar").click(function(){
-  if($("#star").val() ) {
-          id++;
-      var li = document.createElement("li");
-          li.className = "starr";
-          li.setAttribute("id", id);
-      var i = document.createElement("INPUT");
-          i.setAttribute("name","multiStar[]");
-          i.setAttribute("type","hidden");
-          i.setAttribute("id", id);
-      var star = document.getElementById('star').value;
-      var star_id = $('#star').attr("star_id")
-      url= '{{ url("/select_stars", "star_id_url") }}';
-      url = url.replace('star_id_url', star_id);
+        // wstawiamy alfabetycznie (po nazwie), a nie na końcu
+        var placed = false;
+        $list.children('li[data-name]').each(function () {
+            if (name.localeCompare($(this).attr('data-name'), 'pl', { sensitivity: 'base' }) < 0) {
+                $li.insertBefore(this);
+                placed = true;
+                return false;
+            }
+        });
+        if (!placed) { $list.append($li); }
 
-      li.innerHTML =  '<a href="'+url+'" target="_blank"> ' + star + '  <button class=\"deleteStar btn-delete\" id=\"'+id+'\">X</button>'
-      i.setAttribute("value", star);
+        $input.val('').removeAttr(cfg.idAttr);
+    }
 
-      $("#starList").append(li)
-      $("#starList").append(i)
-      $('#star').val('');
-  }});
+    function initPicker(cfg) {
+        $(cfg.input).autocomplete({
+            source: cfg.source,
+            minLength: 1,
+            scroll: true,
+            select: function (event, ui) {
+                $(cfg.input).val(ui.item.value);
+                $(cfg.input).attr(cfg.idAttr, ui.item[cfg.itemId]);
+            }
+        }).autocomplete('instance')._renderItem = function (ul, item) {
+            return $('<li>').addClass(item.disabled)
+                .append($('<div>')
+                    .append($('<img>').attr('src', item.img))
+                    .append($('<span>').text(item.value)))
+                .appendTo(ul);
+        };
 
-$("#starList").on('click', 'button.deleteStar', function() {
-  var idDiv = this.id;
-  $("#"+idDiv).remove()
-  $(":input[id='"+idDiv+"']").remove();
-});
+        $(cfg.addBtn).on('click', function () { addPill(cfg); });
+        $(cfg.list).on('click', 'button.pill-remove', function () {
+            $(this).closest('li').remove(); // razem z ukrytym polem formularza
+        });
+    }
 
-$("#starList").on('click', 'button.deleteStarExsit', function() {
-  var del_id = this.id;
-  var toDel = del_id.replace('id_', '');
-  $("#id_"+toDel).remove();
-});
-
-
-// autocomplete: wytwórnie
-$(function() {
-  $('#studios').autocomplete({
-      source: "{{url('/getstudios')}}",
-      minLength: 1,
-      scroll:true,
-      select: function(event, ui)
-      {
-        $('#studios').val(ui.item.value);
-        var preview = document.getElementById("studios");
-        preview.setAttribute("studios_id", ui.item.studios_id);
-      }
-    }).autocomplete( "instance" )._renderItem = function( ul, item ) {
-      return $( "<li class='"+item.disabled+"'><div><img src='"+item.img+"'><span>"+item.value+"</span></div></li>" ).appendTo( ul );
-    };
-});
-
-var id = 0;
-$("#addStudios").click(function(){
-  if($("#studios").val() ) {
-          id++;
-      var li = document.createElement("li");
-          li.className = "studios";
-          li.setAttribute("id", id);
-      var i = document.createElement("INPUT");
-          i.setAttribute("name","multiStudios[]");
-          i.setAttribute("type","hidden");
-          i.setAttribute("id", id);
-      var studios = document.getElementById('studios').value;
-      var studios_id = $('#studios').attr("studios_id")
-      url= '{{ url("/select_studios", "studios_id_url") }}';
-      url = url.replace('studios_id_url', studios_id);
-
-      li.innerHTML =  '<a href="'+url+'" target="_blank"> ' + studios + '  <button class=\"deleteStar btn-delete\" id=\"'+id+'\">X</button>'
-      i.setAttribute("value", studios);
-
-      $("#studiosList").append(li)
-      $("#studiosList").append(i)
-      $('#studios').val('');
-  }});
-
-$("#studiosList").on('click', 'button.deleteStar', function() {
-  var idDiv = this.id;
-  $("#"+idDiv).remove()
-  $(":input[id='"+idDiv+"']").remove();
-});
-
-$("#studiosList").on('click', 'button.deleteStarExsit', function() {
-  var del_id = this.id;
-  var toDel = del_id.replace('id_', '');
-  $("#id_"+toDel).remove();
+    initPicker({
+        input: '#tag', addBtn: '#addTag', list: '#tagList', cls: 'tags',
+        fieldName: 'multiTag[]', idAttr: 'tag_id', itemId: 'tag_id',
+        source: "{{ url('/gettag') }}", urlBase: "{{ url('/select_categories') }}"
+    });
+    initPicker({
+        input: '#star', addBtn: '#addStar', list: '#starList', cls: 'starr',
+        fieldName: 'multiStar[]', idAttr: 'star_id', itemId: 'star_id',
+        source: "{{ url('/getstar') }}", urlBase: "{{ url('/select_stars') }}"
+    });
+    initPicker({
+        input: '#studios', addBtn: '#addStudios', list: '#studiosList', cls: 'studios',
+        fieldName: 'multiStudios[]', idAttr: 'studios_id', itemId: 'studios_id',
+        source: "{{ url('/getstudios') }}", urlBase: "{{ url('/select_studios') }}"
+    });
 });
 </script>
 

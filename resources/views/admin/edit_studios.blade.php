@@ -29,13 +29,13 @@
         <div class="upload-preview">
             <div class="upload-preview__card">
                 <label class="upload-subgroup__label">Ustawione</label>
-                <div class="resizable-video" style="aspect-ratio:1/1; margin-bottom:16px;">
-                    <img src="{{URL::asset("$studios->thumbnail")}}" style="width:100%; height:100%; object-fit:contain;">
+                <div class="resizable-video thumb-preview" style="margin-bottom:16px;">
+                    <img src="{{URL::asset("$studios->thumbnail")}}" style="width:100%; height:100%; object-fit:cover;">
                 </div>
 
                 <label class="upload-subgroup__label">Podgląd nowego (po wybraniu pliku)</label>
-                <div class="resizable-video" style="aspect-ratio:1/1;">
-                    <img src="{{ asset('icon/app.blade/notfing_found.png') }}" id="video_here" style="width:100%; height:100%; object-fit:contain;">
+                <div class="resizable-video thumb-preview">
+                    <img src="{{ asset('icon/app.blade/notfing_found.png') }}" id="video_here" style="width:100%; height:100%; object-fit:cover;">
                 </div>
             </div>
         </div>

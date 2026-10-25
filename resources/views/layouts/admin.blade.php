@@ -83,6 +83,7 @@
                     <li class="{{ request()->is('admin_stars*') ? 'active' : '' }}"><a href="{{ url('/admin_stars') }}">Gwiazdy</a></li>
                     <li class="{{ request()->is('admin_studios*') ? 'active' : '' }}"><a href="{{ url('/admin_studios') }}">Wytwórnie</a></li>
                     <li class="{{ request()->is('admin_sites*') ? 'active' : '' }}"><a href="{{ url('/admin_sites') }}">Strony</a></li>
+                    <li class="{{ request()->is('admin_settings*') ? 'active' : '' }}"><a href="{{ url('/admin_settings') }}">Ustawienia</a></li>
 
                     <li class="nav-dd {{ request()->is('cut_films') || request()->is('join_films') || request()->is('cut_image') || request()->is('simply_conversion') || request()->is('conversion') ? 'active' : '' }}">
                         <a href="#" aria-haspopup="true">
@@ -185,6 +186,7 @@
                 <li class="{{ request()->is('admin_stars*') ? 'active' : '' }}"><a href="{{ url('/admin_stars') }}">Gwiazdy</a></li>
                 <li class="{{ request()->is('admin_studios*') ? 'active' : '' }}"><a href="{{ url('/admin_studios') }}">Wytwórnie</a></li>
                 <li class="{{ request()->is('admin_sites*') ? 'active' : '' }}"><a href="{{ url('/admin_sites') }}">Strony</a></li>
+                    <li class="{{ request()->is('admin_settings*') ? 'active' : '' }}"><a href="{{ url('/admin_settings') }}">Ustawienia</a></li>
 
                 <li class="drawer__accordion">
                     <button type="button" class="drawer__accordion-btn" aria-expanded="false">

@@ -128,7 +128,7 @@
                         </td>
                         <td>{{"$star->rating"}}</td>
                         <td>
-                            <img src="{{URL::asset("$star->thumbnail")}}" class="img-fluid img-thumbnail" alt="{{$star->name}}" style="max-width:70px; border-radius:6px;">
+                            <img src="{{URL::asset("$star->thumbnail")}}" class="img-fluid" alt="{{$star->name}}" style="max-width:70px; border-radius:6px;">
                         </td>
                         <td>
                             <a href="{{url('/edit_stars', $star->id)}}" class="btn btn-info">Edytuj</a>

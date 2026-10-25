@@ -116,7 +116,7 @@
                         </td>
                         <td>{{$studio->rating}}</td>
                         <td>
-                            <img src="{{URL::asset("$studio->thumbnail")}}" class="img-fluid img-thumbnail" alt="{{$studio->name}}" style="max-width:70px; border-radius:6px;">
+                            <img src="{{URL::asset("$studio->thumbnail")}}" class="img-fluid" alt="{{$studio->name}}" style="max-width:70px; border-radius:6px;">
                         </td>
                         <td>
                             <a href="{{url('/edit_studios', $studio->id)}}" class="btn btn-info">Edytuj</a>

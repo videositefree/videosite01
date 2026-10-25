@@ -93,21 +93,21 @@ Route::get('/install_db', [DatabaseController::class, 'install_db']); // CHECK C
 Route::get('', [FilmsController::class, 'index']);
 // ============================================================== FILTR FOR INDEX SITE ===================================================== //
 
-Route::get('/index_asc', [FilmsController::class, 'index_asc']);
+Route::get('/index_asc', function () { return redirect('/?sort=oldest'); });
 
-Route::get('/index_name_asc', [FilmsController::class, 'index_name_asc']);
+Route::get('/index_name_asc', function () { return redirect('/?sort=name_asc'); });
 
-Route::get('/index_name_desc', [FilmsController::class, 'index_name_desc']);
+Route::get('/index_name_desc', function () { return redirect('/?sort=name_desc'); });
 
-Route::get('/index_rating_asc', [FilmsController::class, 'index_rating_asc']);
+Route::get('/index_rating_asc', function () { return redirect('/?sort=rating_asc'); });
 
-Route::get('/index_rating_desc', [FilmsController::class, 'index_rating_desc']);
+Route::get('/index_rating_desc', function () { return redirect('/?sort=rating_desc'); });
 
-Route::get('/index_duration_asc', [FilmsController::class, 'index_duration_asc']);
+Route::get('/index_duration_asc', function () { return redirect('/?sort=duration_asc'); });
 
-Route::get('/index_duration_desc', [FilmsController::class, 'index_duration_desc']);
+Route::get('/index_duration_desc', function () { return redirect('/?sort=duration_desc'); });
 
-Route::get('/index_random', [FilmsController::class, 'index_random']);
+Route::get('/index_random', function () { return redirect('/?sort=random'); });
 
 // ===================================================================== END =============================================================== //
 
@@ -124,6 +124,8 @@ Route::get('/index_random', [FilmsController::class, 'index_random']);
 Route::get('/watch/{id}', [FilmsController::class, 'watch'])->name('watch');
 
 Route::get('/index_random_film_watch', [FilmsController::class, 'index_random_film_watch']);
+
+Route::post('/film_vote/{id}', [FilmsController::class, 'vote'])->name('film_vote');
 
 // ===================================================================== END =============================================================== //
 
@@ -152,49 +154,49 @@ Route::get('/search/method', [Filtrscontroller::class, 'relevance']);
 
 Route::get('/select_categories/{id}', [FilmsController::class, 'select_categories']);
 
-Route::get('/select_categories_asc/{id}', [FilmsController::class, 'select_categories_asc']);
+Route::get('/select_categories_asc/{id}', function ($id) { return redirect('/select_categories/'.$id.'?sort=oldest'); });
 
-Route::get('/select_categories_films_asc/{id}', [FilmsController::class, 'select_categories_films_asc']);
+Route::get('/select_categories_films_asc/{id}', function ($id) { return redirect('/select_categories/'.$id.'?sort=name_asc'); });
 
-Route::get('/select_categories_films_desc/{id}', [FilmsController::class, 'select_categories_films_desc']);
+Route::get('/select_categories_films_desc/{id}', function ($id) { return redirect('/select_categories/'.$id.'?sort=name_desc'); });
 
-Route::get('/select_categories_films_stars_asc/{id}', [FilmsController::class, 'select_categories_films_stars_asc']);
+Route::get('/select_categories_films_stars_asc/{id}', function ($id) { return redirect('/select_categories/'.$id.'?sort=rating_asc'); });
 
-Route::get('/select_categories_films_stars_desc/{id}', [FilmsController::class, 'select_categories_films_stars_desc']);
+Route::get('/select_categories_films_stars_desc/{id}', function ($id) { return redirect('/select_categories/'.$id.'?sort=rating_desc'); });
 
-Route::get('/select_categories_random/{id}', [FilmsController::class, 'select_categories_random']);
+Route::get('/select_categories_random/{id}', function ($id) { return redirect('/select_categories/'.$id.'?sort=random'); });
 
 
 
 Route::get('/select_stars/{id}', [FilmsController::class, 'select_stars']);
 
-Route::get('/select_stars_asc/{id}', [FilmsController::class, 'select_stars_asc']);
+Route::get('/select_stars_asc/{id}', function ($id) { return redirect('/select_stars/'.$id.'?sort=oldest'); });
 
-Route::get('/select_stars_films_asc/{id}', [FilmsController::class, 'select_stars_films_asc']);
+Route::get('/select_stars_films_asc/{id}', function ($id) { return redirect('/select_stars/'.$id.'?sort=name_asc'); });
 
-Route::get('/select_stars_films_desc/{id}', [FilmsController::class, 'select_stars_films_desc']);
+Route::get('/select_stars_films_desc/{id}', function ($id) { return redirect('/select_stars/'.$id.'?sort=name_desc'); });
 
-Route::get('/select_stars_films_stars_asc/{id}', [FilmsController::class, 'select_stars_films_stars_asc']);
+Route::get('/select_stars_films_stars_asc/{id}', function ($id) { return redirect('/select_stars/'.$id.'?sort=rating_asc'); });
 
-Route::get('/select_stars_films_stars_desc/{id}', [FilmsController::class, 'select_stars_films_stars_desc']);
+Route::get('/select_stars_films_stars_desc/{id}', function ($id) { return redirect('/select_stars/'.$id.'?sort=rating_desc'); });
 
-Route::get('/select_stars_random/{id}', [FilmsController::class, 'select_stars_random']);
+Route::get('/select_stars_random/{id}', function ($id) { return redirect('/select_stars/'.$id.'?sort=random'); });
 
 
 
 Route::get('/select_studios/{id}', [FilmsController::class, 'select_studios']);
 
-Route::get('/select_studios_asc/{id}', [FilmsController::class, 'select_studios_asc']);
+Route::get('/select_studios_asc/{id}', function ($id) { return redirect('/select_studios/'.$id.'?sort=oldest'); });
 
-Route::get('/select_studios_films_asc/{id}', [FilmsController::class, 'select_studios_films_asc']);
+Route::get('/select_studios_films_asc/{id}', function ($id) { return redirect('/select_studios/'.$id.'?sort=name_asc'); });
 
-Route::get('/select_studios_films_desc/{id}', [FilmsController::class, 'select_studios_films_desc']);
+Route::get('/select_studios_films_desc/{id}', function ($id) { return redirect('/select_studios/'.$id.'?sort=name_desc'); });
 
-Route::get('/select_studios_films_stars_asc/{id}', [FilmsController::class, 'select_studios_films_stars_asc']);
+Route::get('/select_studios_films_stars_asc/{id}', function ($id) { return redirect('/select_studios/'.$id.'?sort=rating_asc'); });
 
-Route::get('/select_studios_films_stars_desc/{id}', [FilmsController::class, 'select_studios_films_stars_desc']);
+Route::get('/select_studios_films_stars_desc/{id}', function ($id) { return redirect('/select_studios/'.$id.'?sort=rating_desc'); });
 
-Route::get('/select_studios_random/{id}', [FilmsController::class, 'select_studios_random']);
+Route::get('/select_studios_random/{id}', function ($id) { return redirect('/select_studios/'.$id.'?sort=random'); });
 
 // ===================================================================== END =============================================================== //
 
@@ -1047,6 +1049,9 @@ Route::get('/admin_tags_studios', [AdminTagsStudiosController::class, 'tags_stud
 
 
 // ================================================================= SITE ============================================================== //
+
+Route::get('/admin_settings', [\App\Http\Controllers\AdminSettingsController::class, 'index']);
+Route::post('/admin_settings_save', [\App\Http\Controllers\AdminSettingsController::class, 'save']);
 
 Route::get('/admin_sites', [AdminSitesController::class, 'site']); 
     // ============================================================== FILTR FOR TAGS SITE ===================================================== //
